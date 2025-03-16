@@ -29,7 +29,7 @@ things I'm already noting for change.
 * Main is too big, much like my first project. LOL?
 * There is a lot here that's supporting functionality I'm working on and not yet releasing. This also means that allow unused is on. 
 * While I'm down with the borrow checker (we drink and go clubbing together), condtional creation of charting related threads is a no until the functionality is moved into a module of it's own. 
-* Matching the core_temp to a target fan speed needs to also be moved into module of it's own. In doing this, we should also be able to gain the ability to add and select custom match statements based on allowable temperature floors or ceilings.
+* Matching the core_temp to a target fan speed needs to also be moved into module of it's own. In doing this, we should also be able to gain the ability to add and select custom match statements based on user preference and desired temperature floors or ceilings.
 * Arguments to this are simplistic and few. It can be started in charting mode at this time, but this is largely for testing until other things are complete. The idea being that a different script will be called to send a message through the file socket telling the process to begin charting. Another message will be sent in the same fashing telling it to stop collecting data and render the chart. 
 
 
