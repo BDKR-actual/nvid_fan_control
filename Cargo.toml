@@ -1,0 +1,23 @@
+[package]
+name = "nvid_fan_control"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+antidote = "1.0.0"
+arraytools = "0.1.5"
+config = "0.14.1"
+charts-rs = "0.3.19"
+dirs = "2.0"
+envmnt = "0.6.0"
+rand = "0.6"
+scan_dir = "0.3.3"
+epoch-timestamp = "1.0.0"
+system = "0.3.3"
+
+# libc = "0.2.159"
+# memory-stats = "1.2.0"
+# getopts = "0.2.18"
+# struct_iterable = "0.1.1"
