@@ -26,32 +26,32 @@ and ‘150’ is your capped wattage.
 *********************************************************************************************** */
 
 #![allow(unused)]
-#![allow(deprecated)]
+// #![allow(deprecated)]
 #![warn(non_camel_case_types)]
 
-use epoch_timestamp::Epoch;				// Straightforward Unix Epoch as seconds
+use epoch_timestamp::Epoch;					// Straightforward Unix Epoch as seconds
 use std::char;
 use std::collections::HashMap;
-use std::env;							// We'll need this for reading from config files
-use std::env::args;						// We explicitly need the arg function
+use std::env;								// We'll need this for reading from config files
+use std::env::args;							// We explicitly need the arg function
 use std::fmt;
-use std::fmt::Display;      		    // For pretty printing debug output
+use std::fmt::Display;		      		    // For pretty printing debug output
 use std::fs;
 use std::io;
 use std::io::{Write, stderr};
 use std::path::Path;
-use std::process;						// For executing commands
-use std::process::{Command};    		// For executing commands
-use std::str::Split;            		// Used in config::check_command
+use std::process;							// For executing commands
+use std::process::{Command};    			// For executing commands
+use std::str::Split;            			// Used in config::check_command
 use std::sync::mpsc::{*};
 use std::thread;
 use std::thread::sleep;
 use std::thread::spawn;
 use std::time::{Duration, SystemTime};
-use std::os::unix::net::UnixStream;		// For listening over a file socket (Unix Domain Socket)
-use std::os::unix::net::UnixListener;	// Kind of like above
+use std::os::unix::net::UnixStream;			// For listening over a file socket (Unix Domain Socket)
+use std::os::unix::net::UnixListener;		// Kind of like above
 use std::io::prelude::*;
-use system::system_output;      		// Used in config::check_command
+use system::system_output;      			// Used in config::check_command
 
 /* Modules */
 use nvid_fan_control::charts;
@@ -86,7 +86,7 @@ fn main()
 	let mut fan_target: u8					= 0;
 	let mut last_fan_target: u8				= 0;
 	let mut main_intvl:	u64					= 8;					// u64 based on what's required by thread sleep
-	let dbg_out:		u8					= 1;
+	let dbg_out:		u8					= 0;
 
 	/* Charting related vars | I'll figure out a way to move this out of main later. */
 	let (chnnl_tx, chnnl_rx)				= channel();			// Create the mpsc channels. F'3n @w35om3!
@@ -108,23 +108,6 @@ fn main()
 		new_sleep:				750
 		};
 
-
-	/* All of the below works. Not yet ready to use */
-	let socket = Path::new(SOCK_PATH);
-
-    // Delete old socket if necessary
-    if socket.exists() { fs::remove_file(socket).unwrap(); }
-
-	// This setups the socket
-	let listener 	= UnixListener::bind(SOCK_PATH).unwrap();
-	listener.set_nonblocking(true);
-	println!("{:?}", listener);
-
-	// This listens too it. 
-	let mut l_stream = UnixStream::connect(SOCK_PATH).unwrap();
-	l_stream.set_nonblocking(true);
-	println!("{:?}", l_stream);
-
 	/* Thread setup if we are charting data */
 	if(charting==1)
 		{
@@ -135,33 +118,20 @@ fn main()
 		}
 	let d_thread	= spawn(move || { collect_chart_data(chnnl_rx, dbg_out); });	// Spwan the thread handing it the reciever
 
-	// let mut l_str_res = String::new();
-    let mut buf = [0; 1024];
-
-
 	/* Now get to work */
 	loop
 		{
-
-		println!("---------------------------------------------------------------------------------------");
-        // let fs_data = l_stream.as_ref().expect("Oh shit!").read_to_string(&mut l_str_res).unwrap();
-		/*
-	    let count 	= l_stream.read(&mut buf).unwrap();
-		println!("{}", count);
-		let response = String::from_utf8(buf[..count].to_vec()).unwrap();
-		println!("{:?}", response);
-		*/
-
-
 		core_temp           = nvid_settings::check_core_temp();						// core_temp comes back in celsius
-
-		println!("{}", core_temp);
-		println!("---------------------------------------------------------------------------------------");
-
+		if(dbg_out==1)
+			{
+			println!("---------------------------------------------------------------------------------------");
+			println!("{}", core_temp);
+			println!("---------------------------------------------------------------------------------------");
+			}
 
         if( (core_temp != last_temp) || (core_temp > 30) )
 			{
-			// println!("core temp => {} | last temp => {}", core_temp, last_temp);
+			if(dbg_out==1) { println!("core temp => {} | last temp => {}", core_temp, last_temp); }
 			match core_temp
 				{
 				0..=30		=> fan_target = 0,
@@ -175,7 +145,6 @@ fn main()
 				{ 
 				if(dbg_out==1) 	{ println!("core temp is {}. Setting fan(s) speed too {}%.", core_temp, fan_target); }
 				nvid_control::set_fan_speed(fan_target); 
-
 				last_fan_target	= fan_target;
 				}
 			}
@@ -211,7 +180,6 @@ fn main()
 		/* Sleep for a bit then check again */
 		thread::sleep(Duration::from_secs(main_intvl));
 		}
-
 	}
 
 
@@ -250,8 +218,8 @@ fn collect_chart_data(rx: Receiver<nvid::nvid_data>, mut dbg: u8)
 		if(!new_data.is_ok()) 	{ continue; }																			// If no data, go to next iteration
 		else
 			{
-			let unwr= new_data.unwrap();																		// Get our data set
-			av = nvid_settings::ret_fan_speed_avg(&unwr.fan1_speed_rpm as &u16, &unwr.fan2_speed_rpm as &u16);	// Generate a fan speed average
+			let unwr= new_data.unwrap();																				// Get our data set
+			av = nvid_settings::ret_fan_speed_avg(&unwr.fan1_speed_rpm as &u16, &unwr.fan2_speed_rpm as &u16);			// Generate a fan speed average
 
 			/* */
 			loop_val = unwr.new_intvl;
@@ -263,11 +231,11 @@ fn collect_chart_data(rx: Receiver<nvid::nvid_data>, mut dbg: u8)
 			chart_data.core_temp_f.push( unwr.core_temp_f );
 			chart_data.ambient_temp.push( 0 ); 
 			chart_data.ambient_temp_f.push( 0 ); 
-			chart_data.fan_speed.push( unwr.fan_speed );														// Fan speed as a percentage
-			chart_data.fan_speed_avg.push(av);																	// Average fan speed. Assuming two fans for now. 
+			chart_data.fan_speed.push( unwr.fan_speed );																// Fan speed as a percentage
+			chart_data.fan_speed_avg.push(av);																			// Average fan speed. Assuming two fans for now. 
 			chart_data.gpu_power_draw.push ( unwr.gpu_power_draw );
 			chart_data.gpu_power_draw_flt.push( unwr.gpu_power_draw_float );
-			chart_data.timestamp.push( timer::return_elapsed_time(&mut timer_data).to_string() );				// This is calling an impl method defined elsewhere
+			chart_data.timestamp.push( timer::return_elapsed_time(&mut timer_data).to_string() );						// This is calling an impl method defined elsewhere
 			}
 
 		/* Now sleep */
