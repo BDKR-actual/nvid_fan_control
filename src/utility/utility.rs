@@ -12,7 +12,7 @@ impl timer
 	pub fn return_elapsed_time(&mut self) -> u64
 		{
 		self.new       = Epoch::now();
-       	self.elapsed   = (self.new - self.now) + self.accum;
+       	self.elapsed   = (self.new - self.now) + self.accum;		// May want to change the name of now to init or start for clarity
 
         /* Note that below operations are setting current meauserments and operations up 
    	    to be compared against or added too in the next iteration. */

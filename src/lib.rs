@@ -16,3 +16,4 @@ struct CliConfig
 pub mod nvid;
 pub mod utility;
 pub mod charts;
+pub mod control;

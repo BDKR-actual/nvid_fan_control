@@ -26,7 +26,7 @@ and ‘150’ is your capped wattage.
 *********************************************************************************************** */
 
 #![allow(unused)]
-// #![allow(deprecated)]
+#![allow(deprecated)]
 #![warn(non_camel_case_types)]
 
 use epoch_timestamp::Epoch;					// Straightforward Unix Epoch as seconds
@@ -57,6 +57,7 @@ use system::system_output;      			// Used in config::check_command
 use nvid_fan_control::charts;
 use nvid_fan_control::charts::chart_init;
 use nvid_fan_control::charts::chart_collect;
+use nvid_fan_control::charts::charting_actual;
 use nvid_fan_control::nvid;
 use nvid_fan_control::nvid::nvid_control;
 use nvid_fan_control::nvid::nvid_data;		// let (chnnl_tx: Sender, chnnl_rx: Reciever)	=	 mpsc::channel();
@@ -86,7 +87,7 @@ fn main()
 	let mut fan_target: u8					= 0;
 	let mut last_fan_target: u8				= 0;
 	let mut main_intvl:	u64					= 8;					// u64 based on what's required by thread sleep
-	let dbg_out:		u8					= 0;
+	let dbg_out:		u8					= 1;
 
 	/* Charting related vars | I'll figure out a way to move this out of main later. */
 	let (chnnl_tx, chnnl_rx)				= channel();			// Create the mpsc channels. F'3n @w35om3!
@@ -103,25 +104,41 @@ fn main()
    		fan2_speed_rpm: 		0,
 		gpu_power_draw: 		"0 W".to_string(),
 		gpu_power_draw_float:	0.0,
-		command:				0,									/* 0 = temp control only. 1 = chart gpu data. 2 = create chart */
-		new_intvl:				4,
+		command:				0,									// 0 = temp control only. 1 = chart gpu data. 2 = create chart 
+		new_intvl:				4,									// Initial loop setting. If charting, will change to 1 second.
 		new_sleep:				750
 		};
 
-	/* Thread setup if we are charting data */
-	if(charting==1)
-		{
-		main_intvl				= 2;												// Set the new interval for the main thread
-		gpu_settings.new_intvl	= 1;												// Pass the new thread interval
-		gpu_settings.command	= 1;												// This tells the thread to start collecting GPU data
-		charting_alive			= 1;
-		}
-	let d_thread	= spawn(move || { collect_chart_data(chnnl_rx, dbg_out); });	// Spwan the thread handing it the reciever
+
+	/* Thread setup if we are charting data */ 
+	// The old location
+	//if(charting==1)
+	//	{
+	//	main_intvl				= 2;																// Set the new interval for the main thread
+	//	gpu_settings.new_intvl	= 1;																// Pass the new thread interval
+	//	gpu_settings.command	= 1;																// This tells the thread to start collecting GPU data
+	//	charting_alive			= 1;
+	//	}
+	let d_thread	= spawn(move || { charting_actual::collect_chart_data(chnnl_rx, dbg_out); });	// Spwan the thread handing it the reciever
 
 	/* Now get to work */
 	loop
 		{
-		core_temp           = nvid_settings::check_core_temp();						// core_temp comes back in celsius
+
+		/* Check if we are charting here */
+		// Some check_if_we_are_charting method 
+
+		/* Thread setup if we are charting data */
+		if(charting==1)
+			{
+			main_intvl				= 2;																// Set the new interval for the main thread
+			gpu_settings.new_intvl	= 1;																// Pass the new thread interval
+			gpu_settings.command	= 1;																// This tells the thread to start collecting GPU data
+			charting_alive			= 1;
+			}
+
+
+		core_temp           = nvid_settings::check_core_temp();										// core_temp comes back in celsius
 		if(dbg_out==1)
 			{
 			println!("---------------------------------------------------------------------------------------");
@@ -179,68 +196,6 @@ fn main()
 
 		/* Sleep for a bit then check again */
 		thread::sleep(Duration::from_secs(main_intvl));
-		}
-	}
-
-
-
-fn collect_chart_data(rx: Receiver<nvid::nvid_data>, mut dbg: u8)
-	{
-	/* Get setup */
-	let mut av: u16			= 0; 	let mut sys_time		= 0;
-	let mut t_now: u64		= 0;	let mut t_new: u64		= 0;
-	let mut t_accum: u64	= 0;	let mut t_elapsed: u64	= 0;
-	let mut loop_val:u64	= 0;	let mut sleep_val: u64 	= 1000;	
-	let mut chart_data  = nvid_fan_control::charts::chart_collect
-		{ 
-		core_temp: 			vec![], 	core_temp_f: 		vec![], 
-		ambient_temp: 		vec![], 	ambient_temp_f: 	vec![], 
-		fan_speed: 			vec![], 	fan_speed_avg:		vec![], 
-		fan1_speed_rpm: 	vec![], 	fan2_speed_rpm: 	vec![], 
-		gpu_power_draw: 	vec![],		gpu_power_draw_flt:	vec![],
-		timestamp:			vec![]
-		};
-	let mut timer_data = nvid_fan_control::utility::timer
-		{
-	    now:        0,		new:        0,
-	    accum:      0,		elapsed:    0
-		};
-
-	/* Initialize our timer */
-	timer::init_timer(&mut timer_data, Epoch::now());
-
-	/* Now off to work with you */
-	loop
-		{
-		/* Cool! We're in. Now let's push data into the chart_dat struct per ieration. */
-		let new_data: Result<nvid::nvid_data, RecvTimeoutError> = rx.recv_timeout(Duration::from_millis(sleep_val));	// Short wait for data before giving up
-		if(dbg==1) 				{ println!("\tChannel receive result is {}", new_data.is_ok()); }						// Dbg output
-		if(!new_data.is_ok()) 	{ continue; }																			// If no data, go to next iteration
-		else
-			{
-			let unwr= new_data.unwrap();																				// Get our data set
-			av = nvid_settings::ret_fan_speed_avg(&unwr.fan1_speed_rpm as &u16, &unwr.fan2_speed_rpm as &u16);			// Generate a fan speed average
-
-			/* */
-			loop_val = unwr.new_intvl;
-			if(sleep_val != unwr.new_sleep)	
-				{ sleep_val = unwr.new_sleep; }
-
-			/* Let's now store our collected data */
-			chart_data.core_temp.push( unwr.core_temp );
-			chart_data.core_temp_f.push( unwr.core_temp_f );
-			chart_data.ambient_temp.push( 0 ); 
-			chart_data.ambient_temp_f.push( 0 ); 
-			chart_data.fan_speed.push( unwr.fan_speed );																// Fan speed as a percentage
-			chart_data.fan_speed_avg.push(av);																			// Average fan speed. Assuming two fans for now. 
-			chart_data.gpu_power_draw.push ( unwr.gpu_power_draw );
-			chart_data.gpu_power_draw_flt.push( unwr.gpu_power_draw_float );
-			chart_data.timestamp.push( timer::return_elapsed_time(&mut timer_data).to_string() );						// This is calling an impl method defined elsewhere
-			}
-
-		/* Now sleep */
-		// thread::sleep(Duration::from_secs(1));
-		thread::sleep(Duration::from_secs(loop_val));
 		}
 	}
 

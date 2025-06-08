@@ -16,6 +16,7 @@ rand = "0.6"
 scan_dir = "0.3.3"
 epoch-timestamp = "1.0.0"
 system = "0.3.3"
+anyhow = "1.0.98"
 
 # libc = "0.2.159"
 # memory-stats = "1.2.0"
