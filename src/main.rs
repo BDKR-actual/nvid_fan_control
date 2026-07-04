@@ -72,7 +72,7 @@ fn main()
 	let mut fan_target: u8					= 0;
 	let mut last_fan_target: u8				= 0;
 	let mut main_intvl:	u64					= 8;					// u64 based on what's required by thread sleep
-	let dbg_out:		u8					= 1;
+	let dbg_out:		u8					= 0;
 
 	/* Now get to work */
 	loop
@@ -85,18 +85,20 @@ fn main()
 			println!("---------------------------------------------------------------------------------------");
 			}
 
-        if( (core_temp != last_temp) || (core_temp > 30) )
+        // if( (core_temp != last_temp) || (core_temp > 41) )
+        if( (core_temp != last_temp) )
 			{
 			if(dbg_out==1) { println!("core temp => {} | last temp => {}", core_temp, last_temp); }
 			match core_temp
 				{
-                0..=42      => fan_target = 0,
-                43..=50     => fan_target = 50,
-                51..=65     => fan_target = 75,
-                66..=70     => fan_target = 80,
-                71..=255    => fan_target = 100,
+                0..=45      => fan_target = 0,
+                46..=50     => fan_target = 65,
+                51..=65     => fan_target = 85,
+                66..=69     => fan_target = 95,
+                70..=255    => fan_target = 100,
 				};
-			if( (core_temp != last_temp) && (fan_target != last_fan_target) )	
+			// if( (core_temp != last_temp) && (fan_target != last_fan_target) )	
+			if( (core_temp != last_temp) )	
 				{ 
 				if(dbg_out==1) 	{ println!("core temp is {}. Setting fan(s) speed too {}%.", core_temp, fan_target); }
 				nvid_control::set_fan_speed(fan_target); 
