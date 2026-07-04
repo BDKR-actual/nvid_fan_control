@@ -9,6 +9,33 @@ const COM_START: &str	= "nvidia-settings -a [fan:";						// This and the below s
 const COM_END: &str		= "]/GPUTargetFanSpeed=100";
 
 
+pub fn cold_range_match(core_temp: u8) -> u8
+    {
+    return match core_temp
+        {
+        0..=35      => 0,
+        36..=50     => 75,
+        51..=65     => 85,
+        66..=69     => 95,
+        70..=255    => 100,
+        }
+    }
+
+
+pub fn warm_range_match(core_temp: u8) -> u8
+    {
+    return match core_temp
+        {
+        0..=45      => 0,
+        46..=50     => 65,
+        51..=65     => 85,
+        66..=69     => 95,
+        70..=255    => 100,
+        }
+    }
+
+
+
 pub fn set_fan_speed(fan_speed: u8) -> bool
 	{
 	/* setup */

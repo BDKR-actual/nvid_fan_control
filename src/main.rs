@@ -68,7 +68,7 @@ fn main()
 	{
 	/* Setup */
 	let mut core_temp:  u8 					= 0;
-    let mut last_temp:  u8  				= 0;
+    let mut last_temp:  u8   				= 0;
 	let mut fan_target: u8					= 0;
 	let mut last_fan_target: u8				= 0;
 	let mut main_intvl:	u64					= 8;					// u64 based on what's required by thread sleep
@@ -85,19 +85,13 @@ fn main()
 			println!("---------------------------------------------------------------------------------------");
 			}
 
-        // if( (core_temp != last_temp) || (core_temp > 41) )
         if( (core_temp != last_temp) )
 			{
 			if(dbg_out==1) { println!("core temp => {} | last temp => {}", core_temp, last_temp); }
-			match core_temp
-				{
-                0..=45      => fan_target = 0,
-                46..=50     => fan_target = 65,
-                51..=65     => fan_target = 85,
-                66..=69     => fan_target = 95,
-                70..=255    => fan_target = 100,
-				};
-			// if( (core_temp != last_temp) && (fan_target != last_fan_target) )	
+
+			// fan_target = nvid_control::cold_range_match(core_temp);
+			fan_target = nvid_control::warm_range_match(core_temp);
+
 			if( (core_temp != last_temp) )	
 				{ 
 				if(dbg_out==1) 	{ println!("core temp is {}. Setting fan(s) speed too {}%.", core_temp, fan_target); }
@@ -115,5 +109,6 @@ fn main()
 		thread::sleep(Duration::from_secs(main_intvl));
 		}
 	}
+
 
 
