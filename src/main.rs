@@ -54,10 +54,6 @@ use std::io::prelude::*;
 use system::system_output;      			// Used in config::check_command
 
 /* Modules */
-use nvid_fan_control::charts;
-use nvid_fan_control::charts::chart_init;
-use nvid_fan_control::charts::chart_collect;
-use nvid_fan_control::charts::charting_actual;
 use nvid_fan_control::nvid;
 use nvid_fan_control::nvid::nvid_control;
 use nvid_fan_control::nvid::nvid_data;		// let (chnnl_tx: Sender, chnnl_rx: Reciever)	=	 mpsc::channel();
@@ -71,17 +67,6 @@ const SOCK_PATH: &str     = "/tmp/chart_comm";
 fn main()
 	{
 	/* Setup */
-	let mut charting:		u8				= 0;
-	let mut charting_alive:	u8				= 0;
-	let arguments:		Vec<String>	= args().collect();	
-	if( arguments.len() >= 2 )
-		{
-        match arguments.get(1).unwrap().as_str()
-            {
-            "chart"		=> { charting = 1; }
-			_			=> { charting = 0; }
-            }
-		}
 	let mut core_temp:  u8 					= 0;
     let mut last_temp:  u8  				= 0;
 	let mut fan_target: u8					= 0;
@@ -89,55 +74,9 @@ fn main()
 	let mut main_intvl:	u64					= 8;					// u64 based on what's required by thread sleep
 	let dbg_out:		u8					= 1;
 
-	/* Charting related vars | I'll figure out a way to move this out of main later. */
-	let (chnnl_tx, chnnl_rx)				= channel();			// Create the mpsc channels. F'3n @w35om3!
-	let mut snd_err_cnt:u16					= 0;					// To keep count of times there was an error sending data on the channel
-	let mut stp_3_otr: HashMap<String, String>= HashMap::new();		// Creating this conditionally would be nice
-	let mut gpu_settings = nvid::nvid_data							// Instantiate the data carrier. 
-		{
-	    core_temp:      		0,
-		core_temp_f:    		0,
-   		ambient_temp:   		0,
-    	ambient_temp_f: 		0,
-	    fan_speed:      		0,
-		fan1_speed_rpm: 		0,
-   		fan2_speed_rpm: 		0,
-		gpu_power_draw: 		"0 W".to_string(),
-		gpu_power_draw_float:	0.0,
-		command:				0,									// 0 = temp control only. 1 = chart gpu data. 2 = create chart 
-		new_intvl:				4,									// Initial loop setting. If charting, will change to 1 second.
-		new_sleep:				750
-		};
-
-
-	/* Thread setup if we are charting data */ 
-	// The old location
-	//if(charting==1)
-	//	{
-	//	main_intvl				= 2;																// Set the new interval for the main thread
-	//	gpu_settings.new_intvl	= 1;																// Pass the new thread interval
-	//	gpu_settings.command	= 1;																// This tells the thread to start collecting GPU data
-	//	charting_alive			= 1;
-	//	}
-	let d_thread	= spawn(move || { charting_actual::collect_chart_data(chnnl_rx, dbg_out); });	// Spwan the thread handing it the reciever
-
 	/* Now get to work */
 	loop
 		{
-
-		/* Check if we are charting here */
-		// Some check_if_we_are_charting method 
-
-		/* Thread setup if we are charting data */
-		if(charting==1)
-			{
-			main_intvl				= 2;																// Set the new interval for the main thread
-			gpu_settings.new_intvl	= 1;																// Pass the new thread interval
-			gpu_settings.command	= 1;																// This tells the thread to start collecting GPU data
-			charting_alive			= 1;
-			}
-
-
 		core_temp           = nvid_settings::check_core_temp();										// core_temp comes back in celsius
 		if(dbg_out==1)
 			{
@@ -151,12 +90,11 @@ fn main()
 			if(dbg_out==1) { println!("core temp => {} | last temp => {}", core_temp, last_temp); }
 			match core_temp
 				{
-				0..=30		=> fan_target = 0,
-				31..=35 	=> fan_target = 30,
-				36..=40		=> fan_target = 60,
-				41..=43		=> fan_target = 75,
-				44..=48		=> fan_target = 90,
- 				49..=255	=> fan_target = 100										// This of course is for when real work is being done. 255 is max for u8.
+                0..=42      => fan_target = 0,
+                43..=50     => fan_target = 50,
+                51..=65     => fan_target = 75,
+                66..=70     => fan_target = 80,
+                71..=255    => fan_target = 100,
 				};
 			if( (core_temp != last_temp) && (fan_target != last_fan_target) )	
 				{ 
@@ -171,33 +109,9 @@ fn main()
 			}
 		last_temp 		= core_temp;
 
-        /* If we are charting, generate gpu data and push onto the pipe. */
-        if(charting==1)
-            {
-            nvid_settings::get_card_data(&mut stp_3_otr);                       // core_temp comes back in celsius
-
-			/* Assign the vals from above */
-            if(dbg_out==1) { println!("\tCelsius is {} | Farenheit is {}", core_temp, celsius_to_farenheit(core_temp as f32)); }
-            gpu_settings.core_temp         		= core_temp;
-            gpu_settings.core_temp_f       		= celsius_to_farenheit(core_temp as f32) as u8;
-            gpu_settings.fan_speed         		= fan_target;
-            gpu_settings.fan1_speed_rpm    		= stp_3_otr.get("GPUCurrentFanSpeedRPM:0").unwrap().parse().unwrap();
-            gpu_settings.fan2_speed_rpm    		= stp_3_otr.get("GPUCurrentFanSpeedRPM:1").unwrap().parse().unwrap();
-
-            nvid_settings::get_card_power(&mut stp_3_otr);
-            gpu_settings.gpu_power_draw    		= stp_3_otr.get("Power Draw").unwrap().to_string();
-            gpu_settings.gpu_power_draw_float   = nvid_settings::convert_power_draw( stp_3_otr.get("Power Draw").unwrap().to_string() );
-
-			/* Put the data in the pipe */
-			let tx_res: Result<(), SendError<nvid::nvid_data>> = chnnl_tx.send(gpu_settings.clone());
-			if(!tx_res.is_ok())		{ snd_err_cnt += 1; }
-			if(snd_err_cnt > 50)	{ /* println!("It appears the reciever is dead!"); */ charting=0; }
-            }
-
 		/* Sleep for a bit then check again */
 		thread::sleep(Duration::from_secs(main_intvl));
 		}
 	}
-
 
 
