@@ -1,7 +1,14 @@
 
 
+extern crate nvml_wrapper;                   // Let's bring in the Nvidia wrapper
+
 use std::fmt;
-// use struct_iterable::Iterable;			 // Cool stuff but not a good fit here 
+use std::time::Instant;
+use std::time::Duration;
+
+
+// Command for setting peak power
+// sudo nvidia-smi -pl 300
 
 /*
 #[allow(non_camel_case_types)]
@@ -30,8 +37,6 @@ pub struct nvid_config
 	pub fan_count:	i8
     }
 
-
-
 impl nvid_data
 	{
 	fn show_core_temp(&self) -> u8	{ 8 }
@@ -46,6 +51,7 @@ impl nvid_data
 */
 
 
+/* This data structure was initially for charting,but will instead be used for writing to a log file. */
 #[allow(non_camel_case_types)]
 #[allow(non_snake_case)]
 #[derive(Debug)]
@@ -67,9 +73,17 @@ pub struct nvid_data
 	}
 
 
+#[allow(non_camel_case_types)]
+#[allow(non_snake_case)]
+#[derive(Debug)]
+#[derive(Clone)]
+pub struct nvid_state_data
+	{
+	pub current_state:		u8,
+	}
+
 
 pub mod nvid_control;
 pub mod nvid_settings;
+pub mod nvid_state;
 
-
- 

@@ -11,10 +11,11 @@ const COM_END: &str		= "]/GPUTargetFanSpeed=100";
 
 pub fn cold_range_match(core_temp: u8) -> u8
     {
+	println!("\nIn the cold range match!\n");
     return match core_temp
         {
-        0..=35      => 0,
-        36..=50     => 75,
+        0..=30      => 0,
+        31..=50     => 75,
         51..=65     => 85,
         66..=69     => 95,
         70..=255    => 100,
@@ -24,6 +25,7 @@ pub fn cold_range_match(core_temp: u8) -> u8
 
 pub fn warm_range_match(core_temp: u8) -> u8
     {
+	println!("\nIn the medium range match!\n");
     return match core_temp
         {
         0..=45      => 0,
@@ -34,6 +36,18 @@ pub fn warm_range_match(core_temp: u8) -> u8
         }
     }
 
+
+pub fn high_range_match(core_temp: u8) -> u8
+	{
+	println!("\nIn the high range match!\n");
+    return match core_temp
+        {
+        0..=60      => 0,
+        61..=65     => 85,
+        66..=69     => 95,
+        70..=255    => 100,
+        }
+	}
 
 
 pub fn set_fan_speed(fan_speed: u8) -> bool

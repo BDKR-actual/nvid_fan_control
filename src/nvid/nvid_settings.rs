@@ -1,10 +1,16 @@
 
+extern crate nvml_wrapper;                  // Crate for wrapper for nvidia gpu's
+
 
 use std::collections::HashMap;
 use std::process;
 use std::str::FromStr;
 use std::string::String;
 use system::system_output;
+use nvml_wrapper::{ Nvml, device::Device };
+use nvml_wrapper::error::NvmlError;
+use nvml_wrapper::enum_wrappers::device::{Clock, TemperatureSensor};
+
 
 /* Let's not generate this over and over again */
 const CARD_CORE_TEMP: &str	= "nvidia-settings -q GPUCoreTemp";
@@ -12,6 +18,12 @@ const CARD_DATA_FULL: &str	= "nvidia-settings -q GPUCoreTemp -q GPUCurrentFanSpe
 const CARD_DATA_PWR:  &str	= "nvidia-smi -q --display=power";
 
 
+/* Probably the most important functions here! */
+pub fn return_utilization(gpu_actual: &Device) -> u32	{ (gpu_actual.utilization_rates()).unwrap().gpu }
+pub fn return_core_temp(gpu_actual: &Device) -> u32		{ (gpu_actual.temperature(TemperatureSensor::Gpu)).unwrap() }
+
+
+/* The onld methodology. Not beign used. Will remove soon */
 pub fn check_core_temp() -> u8
 	{
 	// let cmd		= "nvidia-settings -q GPUCoreTemp".to_string();
