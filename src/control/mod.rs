@@ -29,8 +29,9 @@ pub struct load_controller
     current_load: 			u8,
     last_transition_time:	Instant,
 	inactivity:				Duration,
-	}
 
+	debug:					u8,
+	}
 
 
 impl load_controller 
@@ -51,9 +52,12 @@ impl load_controller
             current_load: 			0,									// Obvious really
             last_transition_time: 	Instant::now(),						// When a state transistion occured 
 			inactivity:				Duration::from_secs(60 * 30),		// How long before transitioning to a lower power state (May need to refer to logged data)
+			debug:					0,
         	}
     	}
 
+	pub fn set_debug(&mut self, dbg_val: u8)
+		{ self.debug = dbg_val.clone(); }
 
 	pub fn check_conditions(&mut self, new_load: u8)
 		{
@@ -62,7 +66,8 @@ impl load_controller
 		/* Check and set in mode high / in_hysterisis */
 		if(self.current_load > self.threshold_high)
 			{
-			println!("\nSetting high!\n");
+			if(self.debug == 1)
+				{ println!("\nSetting high!\n"); }
 			self.state 					= load_state::high;
 			self.last_transition_time	= Instant::now();
 			self.in_hysteresis			= 1;
@@ -70,7 +75,8 @@ impl load_controller
 		/* Check and set if in normal / in_normal */
 		else if( (self.current_load > self.threshold_normal) && self.in_hysteresis == 0 )
 			{
-			println!("\nSetting normal!\n");
+			if(self.debug == 1)
+				{ println!("\nSetting normal!\n"); }
 			self.state 					= load_state::normal;
 	
 			if(self.in_normal == 0)
@@ -99,7 +105,8 @@ impl load_controller
 			{
 			if(self.last_transition_time.elapsed().as_secs() > self.inactivity.as_secs())
 				{
-				println!("\nSetting low!\n");
+				if(self.debug == 1)
+					{ println!("\nSetting low!\n"); }
 				self.state 					= load_state::low;
 				
 				if(self.in_normal == 1)
@@ -113,8 +120,11 @@ impl load_controller
 
 
 		/* Some debugging ouutput. Can't hurt. */
-		println!("\n\n");
-		dbg!(&self);
+		if(self.debug == 1)
+			{
+			println!("\n\n");
+			dbg!(&self);
+			}
 		}
 
 

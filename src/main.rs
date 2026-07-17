@@ -30,29 +30,21 @@ and ‘150’ is your capped wattage.
 #![warn(non_camel_case_types)]
 extern crate nvml_wrapper;					// Let's bring in the Nvidia wrapper
 
-
-use epoch_timestamp::Epoch;					// Straightforward Unix Epoch as seconds
-use std::char;
-use std::collections::HashMap;
+// use std::char;
+// use std::collections::HashMap;
+// use std::fmt;
+// use std::fmt::Display;		      		// For pretty printing debug output
 use std::env;								// We'll need this for reading from config files
 use std::env::args;							// We explicitly need the arg function
-use std::fmt;
-use std::fmt::Display;		      		    // For pretty printing debug output
 use std::fs;
-use std::io;
 use std::io::{Write, stderr};
 use std::path::Path;
 use std::process;							// For executing commands
 use std::process::{Command};    			// For executing commands
 use std::str::Split;            			// Used in config::check_command
-use std::sync::mpsc::{*};
 use std::thread;
 use std::thread::sleep;
-use std::thread::spawn;
 use std::time::{Duration, SystemTime, Instant};
-use std::os::unix::net::UnixStream;			// For listening over a file socket (Unix Domain Socket)
-use std::os::unix::net::UnixListener;		// Kind of like above
-use std::io::prelude::*;
 use system::system_output;      			// Used in config::check_command
 use nvml_wrapper::Nvml;
 
@@ -63,33 +55,44 @@ use nvid_fan_control::nvid::nvid_control;
 use nvid_fan_control::nvid::nvid_data;		// let (chnnl_tx: Sender, chnnl_rx: Reciever)	=	 mpsc::channel();
 use nvid_fan_control::nvid::nvid_settings;
 use nvid_fan_control::nvid::nvid_settings::celsius_to_farenheit;
-// use nvid_fan_control::nvid::gpu;
 use nvid_fan_control::utility::timer;
 
-const SOCK_PATH: &str     = "/tmp/chart_comm";
+
 
 /* Super simple logic really */
 fn main()
 	{
 	/* Setup */
-	// let mut core_usage:	u8					= 0;
 	let mut core_temp:  u8					= 0;
 	let mut core_temp_i:u32					= 0;
     let mut last_temp:  u8   				= 0;
 	let mut fan_target: u8					= 0;
 	let mut last_fan_target: u8				= 0;
-	let mut main_intvl:	u64					= 8;									// u64 based on what's required by thread sleep
-	let mut dbg_out:	u8					= 1;
+	let mut dbg_out:	u8					= 0;
+	let main_intvl:		u64					= 8;									// u64 based on what's required by thread sleep
 	let nvml 								= Nvml::init();
 	let binding 							= nvml.expect("Uh on... We didn't get our nvml rep!");
 	let gpu_bound 							= binding.device_by_index(0);
 	let mut init_util:   u32				= 0;
 	let mut utilization: u8					= 0;									// This is essentially load
 	let mut load_control					= control::load_controller::new();		// The mechanism that will start deciding cooling regimes
-	/* ********** NOT SURE IF I'M OGING TO NEED THESE OUT HERE ********** */
-	let start 								= Instant::now();
-	let duration 							= start.elapsed();
+	let args: Vec<String> 					= env::args().collect();				// This will do. We are only interested in one arg.
 
+	/* There is only one arg we are after so we'll make it simple. */
+	if(args.len() as u8 == 3) 
+		{ 
+		if(args[1].clone() as String == "--d")
+			{
+			if(args[2].clone() as String == "1")
+				{ dbg_out = 1;  }
+			}
+		}
+
+	/* Now that we know our debug posture, send it to the load_controller. */
+	load_control.set_debug(dbg_out);
+
+	/* Bye! */
+	drop(args);
 
 	/* Now get to work */
 	loop
@@ -103,7 +106,7 @@ fn main()
 		utilization		= init_util as u8;
 
 		/* Determine cooling regime */
-		load_control.check_conditions(utilization.clone());
+		load_control.check_conditions( utilization.clone() );
 
 		if(dbg_out==1)
 			{
@@ -125,15 +128,9 @@ fn main()
 				&_ 			=> todo!(),
 				}
 
-			// fan_target = nvid_control::cold_range_match(core_temp);
-			// fan_target = nvid_control::warm_range_match(core_temp);
-
-			if( (core_temp != last_temp) )	
-				{ 
-				if(dbg_out==1) 	{ println!("core temp is {}. Setting fan(s) speed too {}%.", core_temp, fan_target); }
-				nvid_control::set_fan_speed(fan_target); 
-				last_fan_target	= fan_target;
-				}
+			if(dbg_out==1) 	{ println!("Setting fan(s) speed too {}%.", fan_target); }
+			nvid_control::set_fan_speed(fan_target); 
+			last_fan_target	= fan_target;
 			}
         else
             {
@@ -145,28 +142,4 @@ fn main()
 		thread::sleep(Duration::from_secs(main_intvl));
 		}
 	}
-
-
-
-/* Taken from conversations with Lumo! */ /*
-
-Well keep the below table here for use later when moving to nvml-wrapper
-
-Aspect			Command-Line Tools								nvml-wrapper
---------------------------------------------------------------------------------------
-Parsing			Parse stdout (regex/string splitting)			Structured Rust types
-Performance		Process spawn overhead (~ms each call)			Direct library calls (µs)
-Error handling	String errors, exit codes						Proper Result<T, Error>
-Portability		Depends on CLI being installed					Ties to NVIDIA driver version
-Feature set		Limited to CLI flags							Full NVML API access
-Safety			Shell injection risk if not careful				Type-safe Rust API
-
-
-
-*/
-
-
-
-
-
 
