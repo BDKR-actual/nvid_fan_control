@@ -10,6 +10,7 @@ use system::system_output;
 use nvml_wrapper::{ Nvml, device::Device };
 use nvml_wrapper::error::NvmlError;
 use nvml_wrapper::enum_wrappers::device::{Clock, TemperatureSensor};
+use crate::nvid::nvid_data;
 
 
 /* Let's not generate this over and over again */
@@ -26,9 +27,7 @@ pub fn return_core_temp(gpu_actual: &Device) -> u32		{ (gpu_actual.temperature(T
 /* The onld methodology. Not beign used. Will remove soon */
 pub fn check_core_temp() -> u8
 	{
-	// let cmd		= "nvidia-settings -q GPUCoreTemp".to_string();
 	let out		= system_output(CARD_CORE_TEMP).expect("Failed to run nvidia-settings!");
-
     let so_res  = String::from_utf8_lossy(&out.stdout);
     let b1    	= so_res.split("\n").collect::<Vec<&str>>();
 	let b2		= b1[1].split(":").collect::<Vec<&str>>();
@@ -40,7 +39,7 @@ pub fn check_core_temp() -> u8
 	}
 
 
-pub fn get_card_data(stp_3: &mut HashMap<String, String>) -> ()
+pub fn get_card_data(stp_3: &mut nvid_data) -> ()
 	{
 	let out					= system_output(CARD_DATA_FULL).expect("Failed to run nvidia-settings!");
     let so_res  			= String::from_utf8_lossy(&out.stdout);
@@ -48,10 +47,9 @@ pub fn get_card_data(stp_3: &mut HashMap<String, String>) -> ()
 	let mut x:	u8			= 0;
 
 	/* Get to work! */
-	stp_3.clear();
     let stp_1: Vec<&str>   = so_res.split("\n").collect::<Vec<&str>>();
 
-	/* Now loop over command output */
+	/* Now loop over command output */ 
 	for l in &stp_1
 		{
 		if (l.contains("Attribute"))
@@ -62,7 +60,6 @@ pub fn get_card_data(stp_3: &mut HashMap<String, String>) -> ()
 			let fnl_v		= l2a[5].replace(".", "");
 			let mut fnl_k	= l2a[3].replace("'", "");
 
-			/* We may need the fan number */
 			if(fnl_k.contains("GPUCurrentFanSpeedRPM"))
 				{
 				let lcl_bm 			= l2a[4].split(":").collect::<Vec<&str>>();
@@ -72,16 +69,16 @@ pub fn get_card_data(stp_3: &mut HashMap<String, String>) -> ()
 				fnl_k				= fnl_k.replace(")", "");
  				}
 
-			/* Push our shizzle into the map */
-			stp_3.insert(fnl_k, fnl_v.to_string());
+			stp_3.set_key(&fnl_k, fnl_v.to_string());
 			}
 
 		x += 1;		
 		}
+
 	}
 
 
-pub fn get_card_power(stp_3: &mut HashMap<String, String>) -> ()
+pub fn get_card_power(stp_3: &mut nvid_data) -> ()
 	{
 	let out					= system_output(CARD_DATA_PWR).expect("Failed to run nvidia-settings!");
     let so_res  			= String::from_utf8_lossy(&out.stdout);
@@ -116,7 +113,7 @@ pub fn get_card_power(stp_3: &mut HashMap<String, String>) -> ()
 				x += 1;
 				}
 
-			stp_3.insert(k.clone(), v.clone());				// Now store in the hash map
+			stp_3.set_key(&k.clone(), v.clone());			// Now store in the hash map
 			}
 		}
 	}
@@ -139,7 +136,5 @@ pub fn ret_fan_speed_avg(f1: &u16, f2: &u16) -> u16
 	return (f1 + f2)/2;		
 	}
 
-pub fn ret_fan_speeds_rpm()	{}
-
-
+// pub fn ret_fan_speeds_rpm()	{}
 

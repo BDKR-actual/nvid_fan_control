@@ -1,47 +1,20 @@
 
 
-/* ***********************************************************************************************
-The two commands below allow me to alter fan speed. On this sytem there are two fans. The below
-commands set each to 100%. Will will of course drive these percentages based on temperature.
-
-nvidia-settings -a ‘[fan:0]/GPUTargetFanSpeed=100’
-nvidia-settings -a ‘[fan:1]/GPUTargetFanSpeed=100’
-
-
-This command will return core temp
-
-
-nvidia-settings -q GPUCoreTemp
-
-----
-
-Fome: https://forums.developer.nvidia.com/t/how-to-set-fanspeed-in-linux-from-terminal/72705/9
-
-In terminal you can set the power curve:
-sudo nvidia-smi -i 0 -pl 150
-Where ‘0’ is your primary GPU (and 1 would be your secondary, and so on…)
-and ‘150’ is your capped wattage.
-
-
-*********************************************************************************************** */
-
 #![allow(unused)]
 #![allow(deprecated)]
 #![warn(non_camel_case_types)]
 extern crate nvml_wrapper;					// Let's bring in the Nvidia wrapper
 
-// use std::char;
-// use std::collections::HashMap;
-// use std::fmt;
-// use std::fmt::Display;		      		// For pretty printing debug output
-use std::env;								// We'll need this for reading from config files
-use std::env::args;							// We explicitly need the arg function
+use std::fs::File;
+use std::collections::HashMap;
+use std::env;								
+use std::env::args;
 use std::fs;
 use std::io::{Write, stderr};
 use std::path::Path;
-use std::process;							// For executing commands
-use std::process::{Command};    			// For executing commands
-use std::str::Split;            			// Used in config::check_command
+use std::process::exit;							
+use std::process::{Command};
+use std::str::Split;            			
 use std::thread;
 use std::thread::sleep;
 use std::time::{Duration, SystemTime, Instant};
@@ -50,14 +23,13 @@ use nvml_wrapper::Nvml;
 
 /* Modules */
 use nvid_fan_control::control;
-use nvid_fan_control::nvid;
+use nvid_fan_control::utility::{*};
+use nvid_fan_control::nvid::{*};
 use nvid_fan_control::nvid::nvid_control;
-use nvid_fan_control::nvid::nvid_data;		// let (chnnl_tx: Sender, chnnl_rx: Reciever)	=	 mpsc::channel();
+use nvid_fan_control::nvid::nvid_data;		
 use nvid_fan_control::nvid::nvid_settings;
 use nvid_fan_control::nvid::nvid_settings::celsius_to_farenheit;
 use nvid_fan_control::utility::timer;
-
-
 
 /* Super simple logic really */
 fn main()
@@ -69,30 +41,50 @@ fn main()
 	let mut fan_target: u8					= 0;
 	let mut last_fan_target: u8				= 0;
 	let mut dbg_out:	u8					= 0;
-	let main_intvl:		u64					= 8;									// u64 based on what's required by thread sleep
+	let mut logging:	u8					= 0;
+	let main_intvl:		u64					= 5;									// u64 based on what's required by thread sleep
 	let nvml 								= Nvml::init();
 	let binding 							= nvml.expect("Uh on... We didn't get our nvml rep!");
 	let gpu_bound 							= binding.device_by_index(0);
 	let mut init_util:   u32				= 0;
 	let mut utilization: u8					= 0;									// This is essentially load
 	let mut load_control					= control::load_controller::new();		// The mechanism that will start deciding cooling regimes
+	let mut logging_data 					= nvid_data::new();
 	let args: Vec<String> 					= env::args().collect();				// This will do. We are only interested in one arg.
+	let mut stp_3_otr: HashMap<String, String>	= HashMap::new();             		// Creating this conditionally would be nice
+	let mut conf_data: HashMap<String, String>	= HashMap::new();					// An emapty container to pass to utility config
 
-	/* There is only one arg we are after so we'll make it simple. */
-	if(args.len() as u8 == 3) 
-		{ 
-		if(args[1].clone() as String == "--d")
+	/* ***************************************************************************************************************************************** */
+	/* Initialization */
+	utility::read_config(&mut conf_data);																		// Load the config file
+	let mut fd  = File::options().append(true).open(<String as Clone>::clone(&conf_data["LOG_LOCATION"]));		// Open the log file for logging
+	load_control.set_starting_state( <String as Clone>::clone(&conf_data["DEF_REGIME"]) );						// Set the default cooling regime
+
+	/* Super quick super simple way to catch args */
+	for arg in args
+		{
+		match(arg.as_str())
 			{
-			if(args[2].clone() as String == "1")
-				{ dbg_out = 1;  }
+			"--d"	=> dbg_out	= 1,
+			"--l"	=> logging	= 1,
+			"--h"	=> show_help(),
+			_ 		=> {},
 			}
-		}
+		}	
 
 	/* Now that we know our debug posture, send it to the load_controller. */
-	load_control.set_debug(dbg_out);
+	if(dbg_out ==1 )
+		{
+		load_control.set_debug(dbg_out);
+		load_control.set_debug_path( <String as Clone>::clone(&conf_data["LOG_LOCATION"]) );
+		}
 
-	/* Bye! */
-	drop(args);
+	/* Let's write the headers to the log file. */
+	if(logging==1)
+		{ writeln!(&mut fd.as_ref().expect("There was an explosion when trying to open/write to the log file!\n"), "{}", LOG_HEADERS); }
+
+	/* Initialization done! Send it! */
+	/* ***************************************************************************************************************************************** */
 
 	/* Now get to work */
 	loop
@@ -106,13 +98,13 @@ fn main()
 		utilization		= init_util as u8;
 
 		/* Determine cooling regime */
-		load_control.check_conditions( utilization.clone() );
+		load_control.check_conditions( &utilization );
 
 		if(dbg_out==1)
-			{
+			{ 
 			println!("\n---------------------------------------------------------------------------------------");
-			println!("{}", core_temp);
-			println!("{}", utilization);
+			println!("{}c", core_temp);
+			println!("{}%", utilization);
 			println!("---------------------------------------------------------------------------------------\n");
 			}
 
@@ -134,12 +126,42 @@ fn main()
 			}
         else
             {
-			if(dbg_out==1)	{ println!("Core temp is {}. Last temp is {} --> Did not set fan speed!", core_temp, last_temp); }
+			if(dbg_out==1)	
+				{ println!("Core temp is {}. Last temp is {} --> Did not set fan speed!", core_temp, last_temp); }
 			}
 		last_temp 		= core_temp;
+	
+        if(logging==1)
+            {
+			/* These calls to get card daa and power write to the logging_data instance */
+            nvid_settings::get_card_data(&mut logging_data);
+            nvid_settings::get_card_power(&mut logging_data);
+            logging_data.core_temp         = core_temp.to_string();
+            logging_data.core_temp_f       = celsius_to_farenheit(core_temp as f32).to_string();
+            logging_data.fan_speed         = fan_target.to_string();
+
+			/* And output if requested */
+			if(dbg_out==1)	{ dbg!(&logging_data); }
+
+			/* Now write to the log file */
+			writeln!(&mut fd.as_ref().expect("There was an explosion when trying to open/write to the log file!\n"), "{}", logging_data.return_data_string());
+            }
 
 		/* Sleep for a bit then check again */
 		thread::sleep(Duration::from_secs(main_intvl));
 		}
 	}
 
+
+
+pub fn show_help()
+	{
+	println!
+		(
+		"\nNVID Fan Control usage...
+		\t--d	: Turns on debugging output.
+		\t--l	: Turns on logging output.
+		\t--h	: Show usage | List arguments.\n\n"
+		);
+	exit(0);
+	}
