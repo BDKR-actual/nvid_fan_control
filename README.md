@@ -12,14 +12,6 @@ temp and set the fan speed based on what comes back"?
 
 And out popped this code. 
 
-I've since been working on the ability to chart the performance of the card (in terms of temperature based on load and time). In a 
-nutshell, this involves the use of a single thread (communicating via MPSC / Thanx [Trevor](https://www.youtube.com/trevorsullivan)!) that 
-will be responsible for collecting this data. There is also an open Unix Domain file socket that will listen for a command to start and stop charting. This uses the 
-[charts-rs](https://crates.io/crates/charts-rs) crate. 
-
-That functionality will be along shortly. 
-
-
 ## Bad code warning! / AKA TODO
 
 This is my second project in Rust! Be cool. That said, I pounded this out initially in a near stream of thought kind of way. 
@@ -27,13 +19,14 @@ Believing that development is best done in an iterative way, refactoring is gara
 things I'm already noting for change. 
 
 Here is the list of recent changes. 
+* There is now a config file. It's placed in "/home/your_user_name/.config/nvid_fan_controller/ and named config. 
+* In the same directory above is the log file. gpu_perf_log! 
+* More cli arguments. Use --h to see. 
 * There is a new module titled "control". It supports three cooling regimes. High, medium, and low obviously. 
 * Implementation of a hysterisys band as part of the transition downward from high to medium cooling regimes. 
-* Passing "--d 1" will get you debugging output. This could be redirected into a file if you need to share this information. 
 * A lot of the junk that was in main has been cleaned up. 
-* The idea of charting has been jettisoned. 
+* The idea of charting has been jettisoned for now. 
 * Bits of that charting code is still around (or stashed) for use in...
-* Logging. This will also result in the addition of more runtime arguments.
 
 
 ## Some bad is good
