@@ -22,21 +22,18 @@ pub struct load_controller
     threshold_normal:		u8,
     threshold_high: 		u8,
     hysteresis_width: 		Duration,
-
 	in_hysteresis:			u8,
 	in_normal:				u8,	
-
     current_load: 			u8,
     last_transition_time:	Instant,
 	inactivity:				Duration,
-
 	debug:					u8,
+	debug_path:				String
 	}
 
 
 impl load_controller 
 	{
-
     pub fn new() -> Self 
 		{
         load_controller 
@@ -45,23 +42,33 @@ impl load_controller
             threshold_normal:		25,									// Don't really care about this. Leave for now.
             threshold_high:			75,									// When we consider the load high
             hysteresis_width:		Duration::from_secs(60 * 10),		// How long to remain in high/hysteresis
-
 			in_hysteresis:			0,
 			in_normal:				0,	
-
             current_load: 			0,									// Obvious really
             last_transition_time: 	Instant::now(),						// When a state transistion occured 
 			inactivity:				Duration::from_secs(60 * 30),		// How long before transitioning to a lower power state (May need to refer to logged data)
 			debug:					0,
+			debug_path:				String::new()
         	}
     	}
 
-	pub fn set_debug(&mut self, dbg_val: u8)
-		{ self.debug = dbg_val.clone(); }
+	pub fn set_debug(&mut self, dbg_val: u8)				{ self.debug = dbg_val.clone(); }
+	pub fn set_debug_path(&mut self, config_val: String)	{ self.debug_path = config_val; }
 
-	pub fn check_conditions(&mut self, new_load: u8)
+	pub fn set_starting_state( &mut self, config_val: String  )
 		{
-        self.current_load = new_load;
+		match(config_val.as_str())
+			{
+			"low"		=> self.state = load_state::low,
+			"normal"	=> self.state = load_state::normal,
+			"high"		=> self.state = load_state::high,
+			&_ => (),
+			}
+		}
+
+	pub fn check_conditions(&mut self, new_load: &u8)
+		{
+        self.current_load = *new_load;
 		
 		/* Check and set in mode high / in_hysterisis */
 		if(self.current_load > self.threshold_high)
@@ -86,7 +93,6 @@ impl load_controller
 				}
 			}	
 
-
 		/* Check for a downward transition from high to normal */
 		if(self.state == load_state::high)
 			{
@@ -98,7 +104,6 @@ impl load_controller
 				self.in_normal				= 1;
 				}
 			}
-
 
 		/* Check for a downward transition from normal to low*/
 		if(self.state == load_state::normal)
@@ -117,7 +122,6 @@ impl load_controller
 					}
 				}
 			}
-
 
 		/* Some debugging ouutput. Can't hurt. */
 		if(self.debug == 1)
