@@ -90,12 +90,8 @@ fn main()
 	loop
 		{
 		/* Let's get the values that matter. */
-		core_temp_i		= nvid_settings::return_core_temp( (gpu_bound.as_ref().expect("Give us that core bro!")) ); 
-    	init_util     	= nvid_settings::return_utilization( (gpu_bound.as_ref().expect("Give us that core bro!")) );
-
-		/* Conver the values from above to u8 */
-		core_temp		= core_temp_i as u8;
-		utilization		= init_util as u8;
+		core_temp		= ( nvid_settings::return_core_temp( (gpu_bound.as_ref().expect("Error trying to get core temp!")) ) ) as u8; 
+		utilization		= ( nvid_settings::return_utilization( (gpu_bound.as_ref().expect("Error trying to get utilization data!")) ) ) as u8;
 
 		/* Determine cooling regime */
 		load_control.check_conditions( &utilization );
