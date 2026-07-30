@@ -70,6 +70,10 @@ impl load_controller
 		{
         self.current_load = *new_load;
 		
+
+		/* --------------------------------------------------------------------------------------- *//*
+		This section is focused on entering and managing high and "in_hysteresis" modes
+		*//* --------------------------------------------------------------------------------------- */
 		/* Check and set in mode high / in_hysterisis */
 		if(self.current_load > self.threshold_high)
 			{
@@ -93,6 +97,10 @@ impl load_controller
 				}
 			}	
 
+
+		/* --------------------------------------------------------------------------------------- *//*
+		Below section for checking and initiating downward transitions in state
+		*//* --------------------------------------------------------------------------------------- */
 		/* Check for a downward transition from high to normal */
 		if(self.state == load_state::high)
 			{
@@ -106,7 +114,7 @@ impl load_controller
 			}
 
 		/* Check for a downward transition from normal to low*/
-		if(self.state == load_state::normal)
+		else if(self.state == load_state::normal)
 			{
 			if(self.last_transition_time.elapsed().as_secs() > self.inactivity.as_secs())
 				{
