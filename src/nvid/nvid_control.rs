@@ -54,7 +54,10 @@ pub fn set_fan_speed(fan_speed: u8) -> bool
 	let num_fans: u8		= 2;
 	let mut com_end_local	= COM_END.to_string();
 	let fs_str				= fan_speed.to_string();
-	com_end_local 			= com_end_local.replace("100", &fs_str);
+
+	/* If fan speed is set to 100, there is no need to alter the string */
+	if(fan_speed < 100)
+		{ com_end_local = com_end_local.replace("100", &fs_str); }
 
 	/* Loop and set */	
 	for x in 0..num_fans
