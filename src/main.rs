@@ -14,12 +14,12 @@ use std::sync::OnceLock;
 use std::thread;
 use std::time::{Duration};					// , SystemTime, Instant};
 use nvml_wrapper::{*};
-
 mod control;
 
 /* Modules */
 use nvid_fan_control::control::{*};
 use nvid_fan_control::utility::{*};
+use nvid_fan_control::utility::utility;
 use nvid_fan_control::nvid::{*};
 use nvid_fan_control::nvid::nvid_gpu;
 use nvid_fan_control::nvid::nvid_control;
@@ -50,7 +50,6 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 	let mut utilization: u8					= 0;									// This is essentially load
 	let mut load_control					= control::load_controller::new();		// The mechanism that will start deciding cooling regimes
 	let mut logging_data 					= nvid_data::new();
-	let args: Vec<String> 					= env::args().collect();				// This will do. We are only interested in one arg.
 	let mut stp_3_otr: HashMap<String, String>	= HashMap::new();             		// Creating this conditionally would be nice
 	let mut conf_data: HashMap<String, String>	= HashMap::new();					// An emapty container to pass to utility config
 
@@ -62,16 +61,7 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 	load_control.set_starting_state( <String as Clone>::clone(&conf_data["DEF_REGIME"]) );						// Set the default cooling regime
 
 	/* Super quick super simple way to catch args */
-	for arg in args
-		{
-		match(arg.as_str())
-			{
-			"--d"	=> dbg_out	= 1,
-			"--l"	=> logging	= 1,
-			"--h"	=> show_help(),
-			_ 		=> {},
-			}
-		}	
+	utility::read_args(&mut dbg_out, &mut logging);
 
 	/* Now that we know our debug posture, send it to the load_controller. */
 	if(dbg_out ==1 )
@@ -154,15 +144,3 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 	}
 
 
-
-pub fn show_help()
-	{
-	println!
-		(
-		"\nNVID Fan Control usage...
-		\t--d	: Turns on debugging output.
-		\t--l	: Turns on logging output.
-		\t--h	: Show usage | List arguments.\n\n"
-		);
-	exit(0);
-	}

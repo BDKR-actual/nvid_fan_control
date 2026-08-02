@@ -3,7 +3,6 @@
 extern crate dirs;
 use epoch_timestamp::Epoch;             // Straightforward Unix Epoch as seconds
 use crate::utility::timer;
-// use crate::utility::config_data;
 use std::collections::HashMap;
 
 use std::fs::File;
@@ -14,7 +13,7 @@ use std::
     io::{prelude::*, BufReader},
     path::Path,
     };
-
+use std::process::exit;
 
 impl timer
 	{
@@ -79,4 +78,32 @@ pub fn read_config(conf_store: &mut HashMap<String, String>)
     }
 
 
+// pub fn read_args(data_store: &HashMap<String, String>) -> HashMap<String, String>	
+pub fn read_args(dbg_out: &mut u8, logging: &mut u8)
+	{
+	let args: 		Vec<String>          		= env::args().collect(); 
+	// let data_store: HashMap<String, String> 	= HashMap::new();
+    for arg in args
+        {
+        match(arg.as_str())
+            {
+            "--d"   => *dbg_out = 1,
+            "--l"   => *logging = 1,
+            "--h"   => show_help(),
+            _       => {},
+            }
+		}
+	}
 
+
+pub fn show_help()
+    {
+    println!
+        (
+        "\nNVID Fan Control usage...
+        \t--d   : Turns on debugging output.
+        \t--l   : Turns on logging output.
+        \t--h   : Show usage | List arguments.\n\n"
+        );
+    exit(0);
+    }
