@@ -8,23 +8,20 @@ extern crate nvml_wrapper;					// Let's bring in the Nvidia wrapper
 use std::fs::File;
 use std::collections::HashMap;
 use std::env;								
-use std::env::args;
-use std::fs;
-use std::io::{Write, stderr};
-use std::path::Path;
-use std::process::exit;							
-use std::process::{Command};
-use std::str::Split;            			
+use std::io::{Write};						// , stderr};
+use std::process::exit;
+use std::sync::OnceLock;							
 use std::thread;
-use std::thread::sleep;
-use std::time::{Duration, SystemTime, Instant};
-use system::system_output;      			// Used in config::check_command
-use nvml_wrapper::Nvml;
+use std::time::{Duration};					// , SystemTime, Instant};
+use nvml_wrapper::{*};
+
+mod control;
 
 /* Modules */
-use nvid_fan_control::control;
+use nvid_fan_control::control::{*};
 use nvid_fan_control::utility::{*};
 use nvid_fan_control::nvid::{*};
+use nvid_fan_control::nvid::nvid_gpu;
 use nvid_fan_control::nvid::nvid_control;
 use nvid_fan_control::nvid::nvid_data;		
 use nvid_fan_control::nvid::nvid_settings;
@@ -32,9 +29,11 @@ use nvid_fan_control::nvid::nvid_settings::celsius_to_farenheit;
 use nvid_fan_control::utility::timer;
 
 /* Super simple logic really */
-fn main()
+fn main()-> Result<(), Box<dyn std::error::Error>>
 	{
 	/* Setup */
+	static NVML: OnceLock<Nvml> = OnceLock::new();
+
 	let mut core_temp:  u8					= 0;
 	let mut core_temp_i:u32					= 0;
     let mut last_temp:  u8   				= 0;
@@ -42,10 +41,11 @@ fn main()
 	let mut last_fan_target: u8				= 0;
 	let mut dbg_out:	u8					= 0;
 	let mut logging:	u8					= 0;
+	let mut use_old_fan_rpm: u8				= 0;
 	let main_intvl:		u64					= 5;									// u64 based on what's required by thread sleep
-	let nvml 								= Nvml::init();
-	let binding 							= nvml.expect("Uh on... We didn't get our nvml rep!");
-	let gpu_bound 							= binding.device_by_index(0);
+    let nvml 								= Nvml::init()?;
+    NVML.set(nvml).expect("NVML already initialized");
+	let mut gpu_actual						= nvid_gpu { gpu_dev: NVML.get().unwrap().device_by_index(0).expect(DEVICE_ERROR), }; 
 	let mut init_util:   u32				= 0;
 	let mut utilization: u8					= 0;									// This is essentially load
 	let mut load_control					= control::load_controller::new();		// The mechanism that will start deciding cooling regimes
@@ -57,7 +57,8 @@ fn main()
 	/* ***************************************************************************************************************************************** */
 	/* Initialization */
 	utility::read_config(&mut conf_data);																		// Load the config file
-	let mut fd  = File::options().append(true).open(<String as Clone>::clone(&conf_data["LOG_LOCATION"]));		// Open the log file for logging
+	let mut fd  	= File::options().append(true).open(<String as Clone>::clone(&conf_data["LOG_LOCATION"]));	// Open the log file for logging
+	use_old_fan_rpm = <String as Clone>::clone(&conf_data["USE_CLI_FAN_RPM"]).parse().unwrap();					// Determine if we are using the wrapper or not
 	load_control.set_starting_state( <String as Clone>::clone(&conf_data["DEF_REGIME"]) );						// Set the default cooling regime
 
 	/* Super quick super simple way to catch args */
@@ -90,8 +91,8 @@ fn main()
 	loop
 		{
 		/* Let's get the values that matter. */
-		core_temp		= ( nvid_settings::return_core_temp( (gpu_bound.as_ref().expect("Error trying to get core temp!")) ) ) as u8; 
-		utilization		= ( nvid_settings::return_utilization( (gpu_bound.as_ref().expect("Error trying to get utilization data!")) ) ) as u8;
+		core_temp		= gpu_actual.return_core_temp();
+		utilization		= gpu_actual.return_utilization();
 
 		/* Determine cooling regime */
 		load_control.check_conditions( &utilization );
@@ -117,7 +118,11 @@ fn main()
 				}
 
 			if(dbg_out==1) 	{ println!("Setting fan(s) speed too {}%.", fan_target); }
-			nvid_control::set_fan_speed(fan_target); 
+
+			/* use_old_fan_rpm is set in the config file */
+			if(use_old_fan_rpm == 1)	{ gpu_actual.set_fan_speed_ext(fan_target); }		// Uses nvidia-settings
+			else						{ gpu_actual.set_fan_speed(fan_target); }			// Uses the nvml_wrapper <-- Does'nt work on older drivers
+
 			last_fan_target	= fan_target;
 			}
         else
@@ -130,8 +135,8 @@ fn main()
         if(logging==1)
             {
 			/* These calls to get card daa and power write to the logging_data instance */
-            nvid_settings::get_card_data(&mut logging_data);
-            nvid_settings::get_card_power(&mut logging_data);
+            gpu_actual.get_card_data(&mut logging_data);
+            gpu_actual.get_card_power(&mut logging_data);
             logging_data.core_temp         = core_temp.to_string();
             logging_data.core_temp_f       = celsius_to_farenheit(core_temp as f32).to_string();
             logging_data.fan_speed         = fan_target.to_string();

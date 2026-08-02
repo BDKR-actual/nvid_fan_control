@@ -46,7 +46,7 @@ impl load_controller
 			in_normal:				0,	
             current_load: 			0,									// Obvious really
             last_transition_time: 	Instant::now(),						// When a state transistion occured 
-			inactivity:				Duration::from_secs(60 * 30),		// How long before transitioning to a lower power state (May need to refer to logged data)
+			inactivity:				Duration::from_secs(60 * 20),		// How long before transitioning to a lower power state (May need to refer to logged data)
 			debug:					0,
 			debug_path:				String::new()
         	}
@@ -70,10 +70,9 @@ impl load_controller
 		{
         self.current_load = *new_load;
 		
-
 		/* --------------------------------------------------------------------------------------- *//*
 		This section is focused on entering and managing high and "in_hysteresis" modes
-		*//* --------------------------------------------------------------------------------------- */
+        *//* --------------------------------------------------------------------------------------- */
 		/* Check and set in mode high / in_hysterisis */
 		if(self.current_load > self.threshold_high)
 			{
@@ -97,10 +96,9 @@ impl load_controller
 				}
 			}	
 
-
 		/* --------------------------------------------------------------------------------------- *//*
 		Below section for checking and initiating downward transitions in state
-		*//* --------------------------------------------------------------------------------------- */
+        *//* --------------------------------------------------------------------------------------- */
 		/* Check for a downward transition from high to normal */
 		if(self.state == load_state::high)
 			{
@@ -112,7 +110,6 @@ impl load_controller
 				self.in_normal				= 1;
 				}
 			}
-
 		/* Check for a downward transition from normal to low*/
 		else if(self.state == load_state::normal)
 			{
@@ -120,7 +117,7 @@ impl load_controller
 				{
 				if(self.debug == 1)
 					{ println!("\nSetting low!\n"); }
-				self.state 					= load_state::low;
+				self.state 						= load_state::low;
 				
 				if(self.in_normal == 1)
 					{
@@ -154,4 +151,3 @@ impl load_controller
 		}
 
 	}
-
