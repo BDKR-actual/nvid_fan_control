@@ -16,6 +16,7 @@ epoch-timestamp = "1.0.0"
 system = "0.3.3"
 anyhow = "1.0.98"
 nvml-wrapper = "0.12.1" 
+filesize = "0.2.0"
 
 # prettyplease = "0.2"
 # antidote = "1.0.0"

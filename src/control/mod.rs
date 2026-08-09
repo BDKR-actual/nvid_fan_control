@@ -18,6 +18,9 @@ enum load_state
 #[derive(Debug, PartialEq, Clone)]
 pub struct load_controller 
 	{
+	pub clamped:		u8,
+	pub clamp_level:	u8,
+
     state: 					load_state,
     threshold_normal:		u8,
     threshold_high: 		u8,
@@ -39,6 +42,8 @@ impl load_controller
         load_controller 
 			{
             state: 					load_state::normal,					// Set initial state
+			clamped:				0,
+			clamp_level:			0,
             threshold_normal:		25,									// Don't really care about this. Leave for now.
             threshold_high:			75,									// When we consider the load high
             hysteresis_width:		Duration::from_secs(60 * 10),		// How long to remain in high/hysteresis
@@ -71,7 +76,7 @@ impl load_controller
         self.current_load = *new_load;
 		
 		/* --------------------------------------------------------------------------------------- *//*
-		This section is focused on entering and managing high and "in_hysteresis" modes
+		This section focuses on entering and managing high/normal states. "in_hysteresis" also.
         *//* --------------------------------------------------------------------------------------- */
 		/* Check and set in mode high / in_hysterisis */
 		if(self.current_load > self.threshold_high)
@@ -81,6 +86,7 @@ impl load_controller
 			self.state 					= load_state::high;
 			self.last_transition_time	= Instant::now();
 			self.in_hysteresis			= 1;
+			self.in_normal				= 0;
 			}
 		/* Check and set if in normal / in_normal */
 		else if( (self.current_load > self.threshold_normal) && self.in_hysteresis == 0 )
@@ -136,8 +142,74 @@ impl load_controller
 			}
 		}
 
+	
+	pub fn run_external(&mut self, ext_cmmnd: &String) 
+		{
+		if(self.debug==1)	{ println!("Now running external command -> {}!", &ext_cmmnd); }
+		match(ext_cmmnd.as_str())
+			{
+			"force_low"			=> self.force_low(),
+			"force_normal"		=> self.force_normal(),
+			"release_hold"		=> self.release_hold(),
+			"clamp_low"			=> self.clamp_low(),
+			"clamp_high"		=> self.clamp_high(),
+			"release_clamp"		=> self.release_clamps(),
+			&_ 					=> ()
+			}
+		}
 
-    pub fn return_state(&self) -> &str 
+
+	fn force_low(&mut self) 
+		{
+		self.state 					= load_state::low;
+		self.in_hysteresis			= 0;
+		self.in_normal				= 0;
+		}
+
+
+	fn force_normal(&mut self) 
+		{
+		self.state 					= load_state::normal;
+		self.in_hysteresis			= 0;
+		self.in_normal				= 1;
+		}	
+
+
+	fn release_hold(&mut self)
+		{ self.in_hysteresis		= 0; }
+
+
+	fn release_clamps(&mut self)
+		{
+		self.state 					= load_state::normal;
+		self.in_hysteresis			= 0;
+		self.in_normal				= 1;
+		self.clamped				= 0;
+		self.clamp_level			= 0;				// In this case, it really doesn't matter
+		}
+
+
+	fn clamp_low(&mut self) 
+		{
+		self.state 					= load_state::low;
+		self.in_hysteresis			= 0;
+		self.in_normal				= 0;
+		self.clamped				= 1;
+		self.clamp_level			= 0;				// 0 is for low
+		}
+
+
+	fn clamp_high(&mut self) 
+		{
+		self.state 					= load_state::high;
+		self.in_hysteresis			= 0;
+		self.in_normal				= 0;
+		self.clamped				= 1;
+		self.clamp_level			= 2;				// 2 is for high
+		}
+
+
+    pub fn return_state(&mut self) -> &str 
 		{ 
 		let mut ret_val:	&str = "";
 		match(self.state) 
@@ -149,5 +221,8 @@ impl load_controller
 
 		ret_val
 		}
-
 	}
+
+
+pub mod external_command;
+

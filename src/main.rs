@@ -1,32 +1,29 @@
 
-
 #![allow(unused)]
 #![allow(deprecated)]
 #![warn(non_camel_case_types)]
-extern crate nvml_wrapper;					// Let's bring in the Nvidia wrapper
+extern crate nvml_wrapper;							// Let's bring in the Nvidia wrapper
 
 use std::fs::File;
 use std::collections::HashMap;
 use std::env;								
-use std::io::{Write};						// , stderr};
-use std::process::exit;
+use std::io::{Write};								// stderr};
 use std::sync::OnceLock;							
 use std::thread;
-use std::time::{Duration};					// , SystemTime, Instant};
+use std::time::{Duration};							// SystemTime, Instant};
 use nvml_wrapper::{*};
 mod control;
 
 /* Modules */
-use nvid_fan_control::control::{*};
 use nvid_fan_control::utility::{*};
 use nvid_fan_control::utility::utility;
 use nvid_fan_control::nvid::{*};
 use nvid_fan_control::nvid::nvid_gpu;
 use nvid_fan_control::nvid::nvid_control;
 use nvid_fan_control::nvid::nvid_data;		
-use nvid_fan_control::nvid::nvid_settings;
 use nvid_fan_control::nvid::nvid_settings::celsius_to_farenheit;
-use nvid_fan_control::utility::timer;
+
+use crate::control::external_command;
 
 /* Super simple logic really */
 fn main()-> Result<(), Box<dyn std::error::Error>>
@@ -49,6 +46,7 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 	let mut init_util:   u32				= 0;
 	let mut utilization: u8					= 0;									// This is essentially load
 	let mut load_control					= control::load_controller::new();		// The mechanism that will start deciding cooling regimes
+	let mut ext_commands					= external_command::external_commands::new();
 	let mut logging_data 					= nvid_data::new();
 	let mut stp_3_otr: HashMap<String, String>	= HashMap::new();             		// Creating this conditionally would be nice
 	let mut conf_data: HashMap<String, String>	= HashMap::new();					// An emapty container to pass to utility config
@@ -68,6 +66,7 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 		{
 		load_control.set_debug(dbg_out);
 		load_control.set_debug_path( <String as Clone>::clone(&conf_data["LOG_LOCATION"]) );
+		ext_commands.set_debug(dbg_out);
 		}
 
 	/* Let's write the headers to the log file. */
@@ -84,9 +83,6 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 		core_temp		= gpu_actual.return_core_temp();
 		utilization		= gpu_actual.return_utilization();
 
-		/* Determine cooling regime */
-		load_control.check_conditions( &utilization );
-
 		if(dbg_out==1)
 			{ 
 			println!("\n---------------------------------------------------------------------------------------");
@@ -95,31 +91,15 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 			println!("---------------------------------------------------------------------------------------\n");
 			}
 
-        if( (core_temp != last_temp) )
-			{
-			if(dbg_out==1) { println!("core temp => {} | last temp => {}", core_temp, last_temp); }
-
-			match( load_control.return_state() )
-				{
-				"low" 		=> ( fan_target = nvid_control::cold_range_match(core_temp) ),
-				"normal" 	=> ( fan_target = nvid_control::warm_range_match(core_temp) ),
-				"high" 		=> ( fan_target = nvid_control::high_range_match(core_temp) ),
-				&_ 			=> todo!(),
-				}
-
-			if(dbg_out==1) 	{ println!("Setting fan(s) speed too {}%.", fan_target); }
-
-			/* use_old_fan_rpm is set in the config file */
-			if(use_old_fan_rpm == 1)	{ gpu_actual.set_fan_speed_ext(fan_target); }		// Uses nvidia-settings
-			else						{ gpu_actual.set_fan_speed(fan_target); }			// Uses the nvml_wrapper <-- Does'nt work on older drivers
-
-			last_fan_target	= fan_target;
-			}
+		if( load_control.clamped == 1 || (core_temp != last_temp) )
+			{ send_speed_request(&dbg_out, &use_old_fan_rpm, &mut core_temp, &mut last_temp, &mut last_fan_target, &mut gpu_actual, &mut load_control); }
         else
             {
 			if(dbg_out==1)	
 				{ println!("Core temp is {}. Last temp is {} --> Did not set fan speed!", core_temp, last_temp); }
 			}
+
+		/* For the next iteration */
 		last_temp 		= core_temp;
 	
         if(logging==1)
@@ -138,9 +118,74 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 			writeln!(&mut fd.as_ref().expect("There was an explosion when trying to open/write to the log file!\n"), "{}", logging_data.return_data_string());
             }
 
+		/* Now let's check for new commands */
+		if( ext_commands.check_for_commands() )
+			{ ext_commands.execute_ext_command(&mut load_control); }
+
 		/* Sleep for a bit then check again */
 		thread::sleep(Duration::from_secs(main_intvl));
 		}
+	}
+
+
+
+
+
+/* ------------------------------------------------------------------------------------------------------------------------------------------------------ */ 
+/* ------------------------------------------------------------------------------------------------------------------------------------------------------ */ /*
+Related functions below
+*/ /* ------------------------------------------------------------------------------------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------------------------------------------------------------------------------------ */
+
+fn send_speed_request(dbg_out: &u8, uofr: &u8, core_tmp: &u8, last_tmp: &u8, lfn: &mut u8, gpa: &mut nvid_gpu, lc: &mut control::load_controller)
+	{
+	let mut fan_target: u8 	= 0;
+	let	utilization: u8		= gpa.return_utilization();
+
+    if( lc.clamped == 1)
+	    {
+        if(*dbg_out==1) { println!("We are clamped! The control level is {}", &lc.clamp_level); }
+
+        match( lc.clamp_level )
+    		{
+            0               => ( fan_target = nvid_control::cold_range_match(*core_tmp) ),
+            1               => ( fan_target = nvid_control::warm_range_match(*core_tmp) ),
+            2               => ( fan_target = nvid_control::high_range_match(*core_tmp) ),
+            3_u8..=u8::MAX  => todo!(),
+            }
+
+        if(*dbg_out==1)  { println!("Setting fan(s) speed too {}%.", fan_target); }
+
+        /* uofr is set in the config file */
+        if(*uofr == 1)   { gpa.set_fan_speed_ext(fan_target); }       // Uses nvidia-settings
+        else             { gpa.set_fan_speed(fan_target); }           // Uses the nvml_wrapper <-- Does'nt work on older drivers
+
+        *lfn = fan_target;
+        }
+	else if( (core_tmp != last_tmp) )
+        {
+        /* Determine cooling regime */
+        lc.check_conditions( &utilization );
+
+        if(*dbg_out==1) { println!("core temp => {} | last temp => {}", core_tmp, last_tmp); }
+
+        match( lc.return_state() )
+    		{
+            "low"           => ( fan_target = nvid_control::cold_range_match(*core_tmp) ),
+            "normal"        => ( fan_target = nvid_control::warm_range_match(*core_tmp) ),
+            "high"          => ( fan_target = nvid_control::high_range_match(*core_tmp) ),
+            &_              => todo!(),
+            }
+
+        if(*dbg_out==1)  { println!("Setting fan(s) speed too {}%.", fan_target); }
+
+        /* uofr is set in the config file */
+        if(*uofr == 1)   { gpa.set_fan_speed_ext(fan_target); }       // Uses nvidia-settings
+        else             { gpa.set_fan_speed(fan_target); }           // Uses the nvml_wrapper <-- Does'nt work on older drivers
+
+        *lfn = fan_target;
+        }
+
 	}
 
 

@@ -78,11 +78,9 @@ pub fn read_config(conf_store: &mut HashMap<String, String>)
     }
 
 
-// pub fn read_args(data_store: &HashMap<String, String>) -> HashMap<String, String>	
 pub fn read_args(dbg_out: &mut u8, logging: &mut u8)
 	{
 	let args: 		Vec<String>          		= env::args().collect(); 
-	// let data_store: HashMap<String, String> 	= HashMap::new();
     for arg in args
         {
         match(arg.as_str())
@@ -107,3 +105,4 @@ pub fn show_help()
         );
     exit(0);
     }
+
