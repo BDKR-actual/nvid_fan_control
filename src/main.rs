@@ -153,14 +153,6 @@ fn send_speed_request(dbg_out: &u8, uofr: &u8, core_tmp: &u8, last_tmp: &u8, lfn
             2               => ( fan_target = nvid_control::high_range_match(*core_tmp) ),
             3_u8..=u8::MAX  => todo!(),
             }
-
-        if(*dbg_out==1)  { println!("Setting fan(s) speed too {}%.", fan_target); }
-
-        /* uofr is set in the config file */
-        if(*uofr == 1)   { gpa.set_fan_speed_ext(fan_target); }       // Uses nvidia-settings
-        else             { gpa.set_fan_speed(fan_target); }           // Uses the nvml_wrapper <-- Does'nt work on older drivers
-
-        *lfn = fan_target;
         }
 	else if( (core_tmp != last_tmp) )
         {
@@ -176,16 +168,17 @@ fn send_speed_request(dbg_out: &u8, uofr: &u8, core_tmp: &u8, last_tmp: &u8, lfn
             "high"          => ( fan_target = nvid_control::high_range_match(*core_tmp) ),
             &_              => todo!(),
             }
-
-        if(*dbg_out==1)  { println!("Setting fan(s) speed too {}%.", fan_target); }
-
-        /* uofr is set in the config file */
-        if(*uofr == 1)   { gpa.set_fan_speed_ext(fan_target); }       // Uses nvidia-settings
-        else             { gpa.set_fan_speed(fan_target); }           // Uses the nvml_wrapper <-- Does'nt work on older drivers
-
-        *lfn = fan_target;
         }
 
+	       
+	if(*dbg_out==1)  { println!("Setting fan(s) speed too {}%.", fan_target); }
+        
+	/* uofr is set in the config file */
+	if(*uofr == 1)   { gpa.set_fan_speed_ext(fan_target); }       // Uses nvidia-settings
+	else             { gpa.set_fan_speed(fan_target); }           // Uses the nvml_wrapper <-- Does'nt work on older drivers
+
+	/* Of course, lfn is the last_fan_target var initialized in main() */
+	*lfn = fan_target;
 	}
 
 
