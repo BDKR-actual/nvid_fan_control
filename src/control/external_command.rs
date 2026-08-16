@@ -1,13 +1,13 @@
 
 use std::fs::File;
 use std::fs::OpenOptions;
-use std::io::Write;
 use filesize::PathExt;
 use std::
     {
     io::{prelude::*, BufReader},
     path::Path,
     };
+use std::process::exit;
 use crate::control::load_controller;
 
 
@@ -37,6 +37,10 @@ impl external_commands
 									"clamp_high".to_string(),
 									"release_clamp".to_string(),
 									],
+			//logging_list:		vec![
+			//						"start_logging".to_string(),
+			//						"stop_logging".to_string(),
+			//						],
 			debug:				0
 			}
 		}
@@ -57,17 +61,22 @@ impl external_commands
 		}
 
 
-	pub fn execute_ext_command(&self, load_control: &mut load_controller)
+	pub fn execute_ext_command(&self, load_control: &mut load_controller, logger: &mut u8)
 		{
 		let comm_lines 		= self.get_lines();
 		let mut cntr: u8	= 1;
 
 		for cl in comm_lines
 			{
+			println!("The command is {}.", &cl);
+			cl.trim();			
 			if(cntr < 2)
 				{
-				if(self.command_list.contains(&cl))		{ load_control.run_external(&cl); }
-				else									{ println!("The comand... {} ...is not recognized! Ignoring!\nMove this to error log output!", &cl); }
+				if(cl=="stop_logging")						{ *logger = 0; }
+				else if(cl=="start_logging")				{ *logger = 1; }
+				else if(cl=="quit")							{ println!("Quit command recieved! Exit..."); exit(0); }
+				else if(self.command_list.contains(&cl))	{ load_control.run_external(&cl); }
+				else										{ println!("The comand... {} ...is not recognized! Ignoring!\nMove this to error log output!", &cl); }
 				}
 
 			/* The easy way to stop multiple commands from being pushed in at once. */
