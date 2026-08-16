@@ -16,9 +16,14 @@ And out popped this code.
 
 This is my second project in Rust! Be cool. That said, I pounded this out initially in a near stream of thought kind of way. 
 Believing that development is best done in an iterative way, refactoring is garaunteed. With that in mind, below are some of the 
-things I'm already noting for change. 
+recent changes and ideas that are brewing in my head. 
 
 Here is the list of recent changes. 
+* 08:16:26 Can now respond to external commands via a super simple file based IPC mechansim. See ext_com.php. 
+* 08:16:26 Via the mechanism mentioned above, logging can be started and stopped and cooling regimes can be selected. 
+* 08:16:26 A new file, simply title commands is now in the .config/nvid_fan_controller directory. This facilitates exteranl commands.
+* 08:16:26 More logic moved out of main() proper. 
+* 08:16:26 TODO!!!! Still need to create a sample config file!
 * There is now a config file. It's placed in "/home/your_user_name/.config/nvid_fan_controller/ and named config. 
 * In the same directory above is the log file. gpu_perf_log! 
 * More cli arguments. Use --h to see. 
