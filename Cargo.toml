@@ -1,7 +1,10 @@
 [package]
 name = "nvid_fan_control"
-version = "0.3.0"
+version = "0.5.0"
 edition = "2021"
+description = "NVIDIA GPU fan control"
+homepage= "https://github.com/BDKR-actual/nvid_fan_control"
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -28,6 +31,19 @@ filesize = "0.2.0"
 # struct_iterable = "0.1.1"
 # charts-rs = "0.3.19"
 
-
 [profile.dev]
 debug = true
+
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 8
+panic = 'unwind'
+incremental = false
+overflow-checks = false
+
+[build]
+rustflags = ["-Z", "threads=12"]
