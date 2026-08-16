@@ -6,11 +6,10 @@ extern crate nvml_wrapper;							// Let's bring in the Nvidia wrapper
 
 use std::fs::File;
 use std::collections::HashMap;
-use std::env;								
-use std::io::{Write};								// stderr};
+use std::io::{Write};
 use std::sync::OnceLock;							
 use std::thread;
-use std::time::{Duration};							// SystemTime, Instant};
+use std::time::{Duration};
 use nvml_wrapper::{*};
 mod control;
 
@@ -73,12 +72,20 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 	if(logging==1)
 		{ writeln!(&mut fd.as_ref().expect("There was an explosion when trying to open/write to the log file!\n"), "{}", LOG_HEADERS); }
 
-	/* Initialization done! Send it! */
+	{ conf_data; }
+
+
+	/* ***************************************************************************************************************************************** */
+	/* Initialization done! Send it! */	
 	/* ***************************************************************************************************************************************** */
 
 	/* Now get to work */
 	loop
 		{
+		/* Check for new commands */
+		if( ext_commands.check_for_commands() )
+			{ ext_commands.execute_ext_command(&mut load_control, &mut logging); }
+
 		/* Let's get the values that matter. */
 		core_temp		= gpu_actual.return_core_temp();
 		utilization		= gpu_actual.return_utilization();
@@ -92,7 +99,7 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 			}
 
 		if( load_control.clamped == 1 || (core_temp != last_temp) )
-			{ send_speed_request(&dbg_out, &use_old_fan_rpm, &mut core_temp, &mut last_temp, &mut last_fan_target, &mut gpu_actual, &mut load_control); }
+			{ fan_target = send_speed_request(&dbg_out, &use_old_fan_rpm, &mut core_temp, &mut last_temp, &mut last_fan_target, &mut gpu_actual, &mut load_control); }
         else
             {
 			if(dbg_out==1)	
@@ -100,27 +107,14 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 			}
 
 		/* For the next iteration */
-		last_temp 		= core_temp;
+		last_temp = core_temp;
 	
+		/* Are we logging data? */
         if(logging==1)
             {
-			/* These calls to get card daa and power write to the logging_data instance */
-            gpu_actual.get_card_data(&mut logging_data);
-            gpu_actual.get_card_power(&mut logging_data);
-            logging_data.core_temp         = core_temp.to_string();
-            logging_data.core_temp_f       = celsius_to_farenheit(core_temp as f32).to_string();
-            logging_data.fan_speed         = fan_target.to_string();
-
-			/* And output if requested */
-			if(dbg_out==1)	{ dbg!(&logging_data); }
-
-			/* Now write to the log file */
-			writeln!(&mut fd.as_ref().expect("There was an explosion when trying to open/write to the log file!\n"), "{}", logging_data.return_data_string());
+			let lds = create_log_entry(&gpu_actual, &mut logging_data, &mut core_temp, &mut fan_target, &dbg_out); 
+			writeln!(&mut fd.as_ref().expect("There was an explosion when trying to open/write to the log file!\n"), "{}", &lds );
             }
-
-		/* Now let's check for new commands */
-		if( ext_commands.check_for_commands() )
-			{ ext_commands.execute_ext_command(&mut load_control); }
 
 		/* Sleep for a bit then check again */
 		thread::sleep(Duration::from_secs(main_intvl));
@@ -132,12 +126,31 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 
 
 /* ------------------------------------------------------------------------------------------------------------------------------------------------------ */ 
-/* ------------------------------------------------------------------------------------------------------------------------------------------------------ */ /*
+/* --------------------------------------------------------------------------------------------------------------------------------------------------- */ /*
 Related functions below
-*/ /* ------------------------------------------------------------------------------------------------------------------------------------------------------ */
+*/ /* --------------------------------------------------------------------------------------------------------------------------------------------------- */
 /* ------------------------------------------------------------------------------------------------------------------------------------------------------ */
 
-fn send_speed_request(dbg_out: &u8, uofr: &u8, core_tmp: &u8, last_tmp: &u8, lfn: &mut u8, gpa: &mut nvid_gpu, lc: &mut control::load_controller)
+
+fn create_log_entry(gpa: &nvid_gpu, mut logging_data: &mut nvid_data, core_temp: &mut u8, fan_target: &mut u8, dbg_out: &u8) -> String
+	{
+	/* These calls to get card daa and power write to the logging_data instance */
+	gpa.get_card_data(&mut logging_data);
+	gpa.get_card_power(&mut logging_data);
+	logging_data.core_temp         = core_temp.to_string();
+	logging_data.core_temp_f       = celsius_to_farenheit(*core_temp as f32).to_string();
+	logging_data.fan_speed         = fan_target.to_string();
+			
+	/* And output if requested */
+	if(*dbg_out==1)	{ dbg!(&logging_data); }
+
+	/* Now generate and return the string */
+	logging_data.return_data_string().to_string()
+	}
+
+
+
+fn send_speed_request(dbg_out: &u8, uofr: &u8, core_tmp: &u8, last_tmp: &u8, lfn: &mut u8, gpa: &mut nvid_gpu, lc: &mut control::load_controller) -> u8
 	{
 	let mut fan_target: u8 	= 0;
 	let	utilization: u8		= gpa.return_utilization();
@@ -179,6 +192,6 @@ fn send_speed_request(dbg_out: &u8, uofr: &u8, core_tmp: &u8, last_tmp: &u8, lfn
 
 	/* Of course, lfn is the last_fan_target var initialized in main() */
 	*lfn = fan_target;
+
+	fan_target
 	}
-
-
