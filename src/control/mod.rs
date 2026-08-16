@@ -99,6 +99,7 @@ impl load_controller
 				{
 				self.last_transition_time	= Instant::now();
 				self.in_normal				= 1;
+				self.in_hysteresis			= 0;
 				}
 			}	
 
