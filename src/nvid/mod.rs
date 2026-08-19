@@ -284,4 +284,4 @@ pub struct nvid_state_data	{ pub current_state: u8, }
 
 pub mod nvid_control;
 pub mod nvid_settings;
-pub mod nvid_state;
+// pub mod nvid_state;

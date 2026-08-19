@@ -7,6 +7,7 @@ extern crate nvml_wrapper;							// Let's bring in the Nvidia wrapper
 use std::fs::File;
 use std::collections::HashMap;
 use std::io::{Write};
+use std::process::exit;
 use std::sync::OnceLock;							
 use std::thread;
 use std::time::{Duration};
@@ -188,7 +189,11 @@ fn send_speed_request(dbg_out: &u8, uofr: &u8, core_tmp: &u8, last_tmp: &u8, lfn
         
 	/* uofr is set in the config file */
 	if(*uofr == 1)   { gpa.set_fan_speed_ext(fan_target); }       // Uses nvidia-settings
-	else             { gpa.set_fan_speed(fan_target); }           // Uses the nvml_wrapper <-- Does'nt work on older drivers
+	else
+		{ 
+		unimplemented!("gpa.set_fan_speed() is not yet implemented! Make sure USE_CLI_FAN_RPM in the config file is set to 0. Make sure nvidia-settings is installed!");
+		gpa.set_fan_speed(fan_target);             // Uses the nvml_wrapper <-- Does'nt work on older drivers
+		}
 
 	/* Of course, lfn is the last_fan_target var initialized in main() */
 	*lfn = fan_target;
