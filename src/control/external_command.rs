@@ -1,4 +1,5 @@
 
+extern crate dirs;
 use std::fs::File;
 use std::fs::OpenOptions;
 use filesize::PathExt;
@@ -26,9 +27,15 @@ impl external_commands
 	{
 	pub fn new() -> Self
 		{
+        /* Setup the config file path. I think this is now happening elsewhere, but we'll let this ride for now. */
+        let conf_tail: String	= "/nvid_fan_controller/commands".to_string();
+        let dirs_act1           = dirs::config_dir().expect("Error: Failed to open the home directory!!\n");    // Assumes ~/.config
+        let dirs_act2: String   = dirs_act1.to_str().unwrap().to_string();                                      // Converts findings above to String
+        let conf_path: String   = dirs_act2+&conf_tail;
+
 		external_commands
 			{
-			comm_file_path:		"/home/bdkr/.config/nvid_fan_controller/commands".to_string(),
+            comm_file_path:     conf_path,
 			command_list:		vec![
 									"force_low".to_string(),
 									"force_normal".to_string(),
@@ -53,7 +60,7 @@ impl external_commands
 		{
 		let path 		= Path::new(&self.comm_file_path);
 		let _metadata 	= path.symlink_metadata();
-		let realsize 	= path.size_on_disk().unwrap();
+		let realsize 	= path.size_on_disk().unwrap_or(0);
 
 		/* We may re-cast this val later */
 		if(realsize > 0 as u64)	{ true }
