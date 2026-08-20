@@ -12,16 +12,26 @@ temp and set the fan speed based on what comes back"?
 
 And out popped this code. 
 
-## Bad code warning! / AKA TODO
+HOWEVER, since there are issues related to thermal cycling, differening load states and the concept of a hysteresis band have been 
+added. This allows us to also controll how quickly a system cools down depending on it's utilization. But even in the high load_state, 
+this controller is still more agressive than the OE drivers, as seen by the fan speeds accellerating to 100% before 70C (controlling the 
+peak).  
+
+Here is a good link talking about [thermal cycling](https://ansys.synopsys.com/blog/thermal-cycling-failure-in-electronics).
+
+## Bad code warning! / DONE and TODO
 
 This is my second project in Rust! Be cool. That said, I pounded this out initially in a near stream of thought kind of way. 
 Believing that development is best done in an iterative way, refactoring is garaunteed. With that in mind, below are some of the 
 recent changes and ideas that are brewing in my head. 
 
 Here is the list of recent changes. 
+* 08:20:26 Now issues command to driver to allow manual control of fan speeds. 
+* 08:19:26 nvml_wrapper::set_fan_speed_rpm set to unimplemented until further testing. 
+* 08:19:26 Fixed issues related to missing files and lack of "~" expansion. 
 * 08:16:26 Can now respond to external commands via a super simple file based IPC mechansim. See ext_com.php. 
 * 08:16:26 Via the mechanism mentioned above, logging can be started and stopped and cooling regimes can be selected. 
-* 08:16:26 A new file, simply title commands is now in the .config/nvid_fan_controller directory. This facilitates exteranl commands.
+* 08:16:26 A new file, simply title commands is now in the .config/nvid_fan_controller directory. This facilitates exteranl commands. 
 * 08:16:26 More logic moved out of main() proper. 
 * 08:16:26 TODO!!!! Still need to create a sample config file!
 * There is now a config file. It's placed in "/home/your_user_name/.config/nvid_fan_controller/ and named config. 
