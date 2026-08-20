@@ -19,6 +19,7 @@ pub const LOG_HEADERS:	&str	= "timestamp,core_temp,core_temp_f,ambient_temp,ambi
 pub const DEVICE_ERROR: &str	= "Failure attemtping to acquire a descriptor on the GPU!";
 const COM_START: &str   		= "nvidia-settings -a [fan:";
 const COM_END: &str     		= "]/GPUTargetFanSpeed=100";
+const COM_FAN_CONTROL: &str		= "nvidia-settings -a [gpu:0]/GPUFanControlState=1";
 const CARD_CORE_TEMP: &str  	= "nvidia-settings -q GPUCoreTemp";
 const CARD_DATA_FULL: &str  	= "nvidia-settings -q GPUCoreTemp -q GPUCurrentFanSpeedRPM";
 const CARD_DATA_PWR:  &str  	= "nvidia-smi -q --display=power";
@@ -34,6 +35,18 @@ impl nvid_gpu
 	pub fn return_core_temp(&self) -> u8						{ self.gpu_dev.temperature(TemperatureSensor::Gpu).unwrap() as u8 }
 	pub fn return_utilization(&self) -> u8						{ self.gpu_dev.utilization_rates().unwrap().gpu as u8 }
 	pub fn return_power_usage(&self) -> f32						{ self.gpu_dev.power_usage().unwrap() as f32 }
+
+	/* Send command to GPU driver telling it we are going to issue fan speed settings */
+	pub fn init_manual_control() -> bool
+		{ 
+		let com_result  = system_output(COM_FAN_CONTROL).expect("Failed to enable manual fan control!"); 
+		let cr_error_str= String::from_utf8_lossy(&com_result.stderr);
+
+		/* Check the results and return */		
+		if( cr_error_str.len() > 0 ) 	{ false }
+		else							{ true }		
+		}
+
 
 	/* The next two items use nvml, BUT it won't work on drivers prior to 565.x I believe. In this case, use the variant */
 	/* with _ext on the end. */

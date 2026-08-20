@@ -58,10 +58,17 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 	use_old_fan_rpm = <String as Clone>::clone(&conf_data["USE_CLI_FAN_RPM"]).parse().unwrap();					// Determine if we are using the wrapper or not
 	load_control.set_starting_state( <String as Clone>::clone(&conf_data["DEF_REGIME"]) );						// Set the default cooling regime
 
+	/* Let's make sure the drivers will let us control fan speed manually */
+	if( !nvid_gpu::init_manual_control() )
+		{
+		panic!("Unable to control the GPU manually. Perhaps you need to run this as root?"); 
+		exit(0);
+		}
+
 	/* Super quick super simple way to catch args */
 	utility::read_args(&mut dbg_out, &mut logging);
 
-	/* Now that we know our debug posture, send it to the load_controller. */
+	/* Now that we know our debug posture (from the line above), send it to the load_controller. */
 	if(dbg_out ==1 )
 		{
 		load_control.set_debug(dbg_out);
