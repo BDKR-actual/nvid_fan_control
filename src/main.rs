@@ -191,7 +191,7 @@ fn send_speed_request(dbg_out: &u8, uofr: &u8, core_tmp: &u8, last_tmp: &u8, lfn
 	if(*uofr == 1)   { gpa.set_fan_speed_ext(fan_target); }       // Uses nvidia-settings
 	else
 		{ 
-		unimplemented!("gpa.set_fan_speed() is not yet implemented! Make sure USE_CLI_FAN_RPM in the config file is set to 0. Make sure nvidia-settings is installed!");
+		unimplemented!("gpa.set_fan_speed() is not yet implemented! Make sure USE_CLI_FAN_RPM in the config file is set to 1. Make sure nvidia-settings is installed!");
 		gpa.set_fan_speed(fan_target);             // Uses the nvml_wrapper <-- Does'nt work on older drivers
 		}
 
