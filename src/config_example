@@ -1,0 +1,5 @@
+
+
+LOG_LOCATION: /home/you/.config/nvid_fan_controller/gpu_fan_perf_log
+DEF_REGIME:   low
+USE_CLI_FAN_RPM: 1
