@@ -26,6 +26,7 @@ Believing that development is best done in an iterative way, refactoring is gara
 recent changes and ideas that are brewing in my head. 
 
 Here is the list of recent changes. 
+* 08:24:26 config file example now in place. 
 * 08:20:26 Now issues command to driver to allow manual control of fan speeds. 
 * 08:19:26 nvml_wrapper::set_fan_speed_rpm set to unimplemented until further testing. 
 * 08:19:26 Fixed issues related to missing files and lack of "~" expansion. 
@@ -43,6 +44,11 @@ Here is the list of recent changes.
 * The idea of charting has been jettisoned for now. 
 * Bits of that charting code is still around (or stashed) for use in...
 
+
+## Install
+
+Make sure that there is a ~/.config/nvid_fan_control/ directory. In that directory, place the config_example file, but rename it too 
+config. Also place two empty files named "command" and "gpu_fan_perf_log". Make sure these are writable!!!
 
 ## Some bad is good
 
