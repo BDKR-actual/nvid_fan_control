@@ -49,10 +49,12 @@ fn lines_from_file(filename: impl AsRef<Path>) -> Vec<String>
 pub fn read_config(conf_store: &mut HashMap<String, String>)
     {
     /* Let's generate a string rep of our configuration file */
-    let conf_tail                           = "/nvid_fan_controller/config";
-    let dirs_act1                           = dirs::config_dir().expect("Error: Failed to open the home directory!!\n");    // Assumes ~/.config
-    let dirs_act2: String                   = dirs_act1.to_str().unwrap().to_string();                                      // Converts findings above to String
-    let conf_path: String                   = dirs_act2+conf_tail;
+    // let conf_tail                           = "/nvid_fan_controller/config";
+    // let dirs_act1                           = dirs::config_dir().expect("Error: Failed to open the home directory!!\n");    // Assumes ~/.config
+    // let dirs_act2: String                   = dirs_act1.to_str().unwrap().to_string();                                      // Converts findings above to String
+    // let conf_path: String                   = dirs_act2+conf_tail;
+
+	let conf_path: String	        			= "/etc/gpufanconf/config".to_string();
 
     /* Let's now open the file, iterate, and assign pertinent values */
     let lines_ref   = lines_from_file(conf_path);   // Get each line from the config file as an entry in a vector
