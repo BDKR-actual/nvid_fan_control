@@ -129,23 +129,34 @@ impl nvid_gpu
 	    let mut v:  String      = "".to_string();
     	let mut read: u8        = 0;
 	    let mut first_line: u8  = 0;
+		let mut cntr: u8		= 1;
 
 	    let stp_1: Vec<&str>   = so_res.split("\n").collect::<Vec<&str>>();
     	for mut l in &stp_1
         	{
 	        /* Get to work */
-    	    x = 0;
-        	if(l.contains("GPU Power Readings"))    { read = 1; first_line = 1; }
-	        if(l.contains("Power Samples"))         { break; }
+    	    x 		= 0;
+			read 	= 0;
+
+			/* Based on 610.xx.xx */
+			if(l.contains("Instantaneous Power Draw"))	
+				{
+				if(l.contains("N/A"))	{ read = 0; }
+				else					{ read = 1; first_line = 0; }
+				}
+			/* Based on 560.xx.xx */
+        	// if(l.contains("GPU Power Readings"))    	{ read = 1; first_line = 0; }
+	        // if(l.contains("Power Samples"))         	{ break; }
 
 	        if(read==1)
     	        {
         	    if(first_line==1)
             	    {
-                	first_line=0;
-	                continue;
+                	first_line	=0;
+					read		=0;
     	            }
-        	    let l_local             = l.trim().replace("\t", "").replace("                        ", "");
+        	    // let l_local             = l.trim().replace("\t", "").replace("                        ", "");
+        	    let l_local             = l.trim().replace("\t", ""); 
             	let mut l_local_boom    = l_local.split(":");
 	            for mut debris in l_local_boom
     	            {
@@ -158,6 +169,9 @@ impl nvid_gpu
 				// println!("\t{} -> {}\n", &k, &v);
 	            stp_3.set_key(&k.clone(), v.clone());           // Now store in the hash map
     	        }
+
+
+			cntr += 1;
         	}
     	}
 
@@ -241,6 +255,7 @@ impl <'a>nvid_data<'_>
 			"fan2_speed_rpm"			=> self.fan2_speed_rpm 		= raw_value,
 			"Power Draw"				=> self.gpu_power_draw 		= raw_value,
 			"gpu_power_draw"			=> self.gpu_power_draw 		= raw_value,
+			"Instantaneous Power Draw"	=> self.gpu_power_draw 		= raw_value,
             _ => {}
         	}
     	}
