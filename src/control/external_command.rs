@@ -72,8 +72,8 @@ impl external_commands
 
 		for cl in comm_lines
 			{
-			println!("The command is {}.", &cl);
 			cl.trim();			
+			println!("The command is {}.", &cl);
 			if(cntr < 2)
 				{
 				if(cl=="stop_logging")						{ *logger = 0; }
