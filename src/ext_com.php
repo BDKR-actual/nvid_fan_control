@@ -34,9 +34,10 @@ if (!in_array($command, $valid_commands))
 	}
 
 # Make sure path to file is setup
-$file_path  = '~/.config/nvid_fan_controller/commands';
-if(strstr($file_path, '~')) 
-	{ $file_path = str_replace('~', $_SERVER['HOME'], $file_path);  }
+// $file_path  = '~/.config/nvid_fan_controller/commands';
+//if(strstr($file_path, '~')) 
+//	{ $file_path = str_replace('~', $_SERVER['HOME'], $file_path);  }
+$file_path 	= '/etc/gpufanconf/commands';
 
 # Write command to file
 $result 	= file_put_contents($file_path, $command);
