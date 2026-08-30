@@ -190,17 +190,12 @@ fn send_speed_request(dbg_out: &u8, uofr: &u8, core_tmp: &u8, last_tmp: &u8, lfn
             &_              => todo!(),
             }
         }
-
 	       
 	if(*dbg_out==1)  { println!("Setting fan(s) speed too {}%.", fan_target); }
         
 	/* uofr is set in the config file */
-	if(*uofr == 1)   { gpa.set_fan_speed_ext(fan_target); }       // Uses nvidia-settings
-	else
-		{ 
-		unimplemented!("gpa.set_fan_speed() is not yet implemented! Make sure USE_CLI_FAN_RPM in the config file is set to 1. Make sure nvidia-settings is installed!");
-		gpa.set_fan_speed(fan_target);             // Uses the nvml_wrapper <-- Does'nt work on older drivers
-		}
+	if(*uofr == 1)	{ gpa.set_fan_speed_ext(fan_target); }  	// Uses nvidia-settings
+	else		  	{ gpa.set_fan_speed(fan_target as u32); }	// Uses nvml_wrapper <-- Does'nt work on old drivers: Before 565? 
 
 	/* Of course, lfn is the last_fan_target var initialized in main() */
 	*lfn = fan_target;
