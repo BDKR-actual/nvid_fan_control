@@ -27,11 +27,8 @@ impl external_commands
 	{
 	pub fn new() -> Self
 		{
-        /* Setup the config file path. I think this is now happening elsewhere, but we'll let this ride for now. */
-        let conf_tail: String	= "/nvid_fan_controller/commands".to_string();
-        let dirs_act1           = dirs::config_dir().expect("Error: Failed to open the home directory!!\n");    // Assumes ~/.config
-        let dirs_act2: String   = dirs_act1.to_str().unwrap().to_string();                                      // Converts findings above to String
-        let conf_path: String   = dirs_act2+&conf_tail;
+        /* Setup the config file path. */
+		let conf_path: String   = "/etc/gpufanconf/commands".to_string();
 
 		external_commands
 			{
@@ -81,7 +78,11 @@ impl external_commands
 				{
 				if(cl=="stop_logging")						{ *logger = 0; }
 				else if(cl=="start_logging")				{ *logger = 1; }
-				else if(cl=="quit")							{ println!("Quit command recieved! Exit..."); exit(0); }
+				else if(cl=="quit")							{ 
+															println!("Quit command recieved! Exit..."); 
+															self.truncate_comm_file();
+															exit(0); 
+															}
 				else if(self.command_list.contains(&cl))	{ load_control.run_external(&cl); }
 				else										{ println!("The comand... {} ...is not recognized! Ignoring!\nMove this to error log output!", &cl); }
 				}
