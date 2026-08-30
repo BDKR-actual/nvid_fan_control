@@ -47,11 +47,15 @@ impl nvid_gpu
 		else							{ true }		
 		}
 
-
 	/* The next two items use nvml, BUT it won't work on drivers prior to 565.x I believe. In this case, use the variant */
 	/* with _ext on the end. */
 	pub fn return_fan_speed_rpm(&self, fan_number: u32) -> u32	{ self.gpu_dev.fan_speed_rpm(fan_number).unwrap() }
-	pub fn set_fan_speed(&self, fan_speed: u8) -> bool 			{ true }
+ 	pub fn set_fan_speed(&mut self, fan_speed: u32) // -> Result<(), Box<dyn std::error::Error>> 		 	
+		{ 
+		let result0 = self.gpu_dev.set_fan_speed(0, fan_speed); 		// Fan 1
+		let result1 = self.gpu_dev.set_fan_speed(1, fan_speed); 		// Fan 2
+		// Ok(())
+		}
 
 	/* At this point, this is actually taken care of in the method "get_card_data" */
 	pub fn return_fan_speed_ext(&self) -> u32 					{ 22 }
