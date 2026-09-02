@@ -42,7 +42,6 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 	let main_intvl:		u64					= 5;									// u64 based on what's required by thread sleep
     let nvml 								= Nvml::init()?;
     NVML.set(nvml).expect("NVML already initialized");
-	let mut gpu_actual						= nvid_gpu { gpu_dev: NVML.get().unwrap().device_by_index(0).expect(DEVICE_ERROR), }; 
 	let mut init_util:   u32				= 0;
 	let mut utilization: u8					= 0;									// This is essentially load
 	let mut load_control					= control::load_controller::new();		// The mechanism that will start deciding cooling regimes
@@ -50,6 +49,11 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 	let mut logging_data 					= nvid_data::new();
 	let mut stp_3_otr: HashMap<String, String>	= HashMap::new();             		// Creating this conditionally would be nice
 	let mut conf_data: HashMap<String, String>	= HashMap::new();					// An emapty container to pass to utility config
+	let mut gpu_actual						= nvid_gpu 
+		{ 
+		gpu_dev: NVML.get().unwrap().device_by_index(0).expect(DEVICE_ERROR), 
+		num_fans: 0
+		}; 
 
 	/* ***************************************************************************************************************************************** */
 	/* Initialization */
@@ -57,6 +61,7 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 	let mut fd  	= File::options().append(true).open(<String as Clone>::clone(&conf_data["LOG_LOCATION"]));	// Open the log file for logging
 	use_old_fan_rpm = <String as Clone>::clone(&conf_data["USE_CLI_FAN_RPM"]).parse().unwrap();					// Determine if we are using the wrapper or not
 	load_control.set_starting_state( <String as Clone>::clone(&conf_data["DEF_REGIME"]) );						// Set the default cooling regime
+	gpu_actual.probe_fans();																					// Probe for the number of fans on the card
 
 	/* Let's make sure the drivers will let us control fan speed manually */
 	if( !nvid_gpu::init_manual_control() )
@@ -92,7 +97,7 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 		{
 		/* Check for new commands */
 		if( ext_commands.check_for_commands() )
-			{ ext_commands.execute_ext_command(&mut load_control, &mut logging); }
+			{ ext_commands.execute_ext_command(&mut load_control, &mut logging, &mut fd); }
 
 		/* Let's get the values that matter. */
 		core_temp		= gpu_actual.return_core_temp();
@@ -128,8 +133,6 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 		thread::sleep(Duration::from_secs(main_intvl));
 		}
 	}
-
-
 
 
 
