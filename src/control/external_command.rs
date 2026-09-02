@@ -5,12 +5,14 @@ use std::fs::OpenOptions;
 use filesize::PathExt;
 use std::
     {
-    io::{prelude::*, BufReader},
+    io::{prelude::*, BufReader, Error},
     path::Path,
     };
 use std::process::exit;
+
 use crate::control::load_controller;
 
+pub const LOG_HEADERS_LOCAL:  &str    = "timestamp,core_temp,core_temp_f,ambient_temp,ambient_temp_f,fan_speed,fan1_speed_rpm,fan2_speed_rpm,Power_Draw,gpu_power_draw";
 
 #[allow(non_camel_case_types)]
 #[allow(non_snake_case)]
@@ -65,7 +67,7 @@ impl external_commands
 		}
 
 
-	pub fn execute_ext_command(&self, load_control: &mut load_controller, logger: &mut u8)
+	pub fn execute_ext_command(&self, load_control: &mut load_controller, logger: &mut u8, fd: &mut Result::<File, Error>)
 		{
 		let comm_lines 		= self.get_lines();
 		let mut cntr: u8	= 1;
@@ -77,12 +79,17 @@ impl external_commands
 			if(cntr < 2)
 				{
 				if(cl=="stop_logging")						{ *logger = 0; }
-				else if(cl=="start_logging")				{ *logger = 1; }
-				else if(cl=="quit")							{ 
-															println!("Quit command recieved! Exit..."); 
-															self.truncate_comm_file();
-															exit(0); 
-															}
+				else if(cl=="start_logging")				
+					{ 
+					*logger = 1; 
+					writeln!(&mut fd.as_ref().expect("There was an explosion when trying to open/write to the log file!\n"), "{}", LOG_HEADERS_LOCAL);					
+					}
+				else if(cl=="quit")
+					{ 
+					println!("Quit command recieved! Exit..."); 
+					self.truncate_comm_file();
+					exit(0); 
+					}
 				else if(self.command_list.contains(&cl))	{ load_control.run_external(&cl); }
 				else										{ println!("The comand... {} ...is not recognized! Ignoring!\nMove this to error log output!", &cl); }
 				}
