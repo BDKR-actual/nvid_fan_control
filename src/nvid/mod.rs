@@ -28,7 +28,11 @@ const CARD_DATA_PWR:  &str  	= "nvidia-smi -q --display=power";
 #[allow(non_camel_case_types)]
 #[allow(non_snake_case)]
 #[derive(Debug)]
-pub struct nvid_gpu	{ pub gpu_dev: 	Device<'static>, }
+pub struct nvid_gpu	
+	{ 
+	pub gpu_dev: 	Device<'static>, 
+	pub num_fans:	u8
+	}
 
 impl nvid_gpu
 	{
@@ -47,14 +51,36 @@ impl nvid_gpu
 		else							{ true }		
 		}
 
+	/* let's probe the GPU to try to figure out how many fans the card has */
+	pub fn probe_fans(&mut self)	/* void */
+		{
+		/* Setup */
+		let fan_speed: u32 	= 50;
+		let i: u32			= 0;
+
+		/* There are likely not 6 fans, but this should be more than enough for most */
+		for i in 0..5 
+			{
+			if let Ok(()) = self.gpu_dev.set_fan_speed(i, fan_speed)	{ self.num_fans = (self.num_fans + 1); }
+			else														{ println!("Probing card... Fan {} doesn't exist.", i); }
+			}
+		}
+
 	/* The next two items use nvml, BUT it won't work on drivers prior to 565.x I believe. In this case, use the variant */
 	/* with _ext on the end. */
 	pub fn return_fan_speed_rpm(&self, fan_number: u32) -> u32	{ self.gpu_dev.fan_speed_rpm(fan_number).unwrap() }
  	pub fn set_fan_speed(&mut self, fan_speed: u32) // -> Result<(), Box<dyn std::error::Error>> 		 	
 		{ 
-		let result0 = self.gpu_dev.set_fan_speed(0, fan_speed); 		// Fan 1
-		let result1 = self.gpu_dev.set_fan_speed(1, fan_speed); 		// Fan 2
-		// Ok(())
+		/* Setup */ 
+		let i: 	u32 	= 0;
+		let mut top:u8  = (self.num_fans);
+
+		/* loop and set */
+		for i in 0..top
+			{
+			if let Ok(()) = self.gpu_dev.set_fan_speed(i as u32, fan_speed)	{ /* */ }
+			else															{ println!("Unable to set speed for fan {}!!!!", (i+1)); }
+			}		
 		}
 
 	/* At this point, this is actually taken care of in the method "get_card_data" */
@@ -119,8 +145,28 @@ impl nvid_gpu
     	    }
 		}
 
+	
+	/* Get card power using the NVML wrapper */
+	pub fn get_card_power(&self, stp_3: &mut nvid_data) -> Result<(), NvmlError>
+		{
+		/* Setup */
+		let pu: i32 			= 0;
+		let key: String 		= "gpu_power_draw".to_string();
+		let mut fnl_res: String = "".to_string();
 
-	pub fn get_card_power(&self, stp_3: &mut nvid_data) -> ()
+		/* Real work */
+		let mut result 			= self.gpu_dev.power_usage()?;
+		fnl_res 				= (result / 1000).to_string() + " W";
+
+		/* Now store in the stp_3 hash map */
+        stp_3.set_key(&key, fnl_res);
+
+		Ok(())
+		}
+	
+
+	/* Get card power using the nvidia-smi command */
+	pub fn get_card_power_old(&self, stp_3: &mut nvid_data) -> ()
     	{
 	    let out                 = system_output(CARD_DATA_PWR).expect("Failed to run nvidia-settings!");
     	let so_res              = String::from_utf8_lossy(&out.stdout);
@@ -166,6 +212,7 @@ impl nvid_gpu
 	                x += 1;
     	            }
 
+				println!("{:?}", &v);
 				// println!("\t{} -> {}\n", &k, &v);
 	            stp_3.set_key(&k.clone(), v.clone());           // Now store in the hash map
     	        }
