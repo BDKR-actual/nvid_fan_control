@@ -26,6 +26,11 @@ Believing that development is best done in an iterative way, refactoring is gara
 recent changes and ideas that are brewing in my head. 
 
 Here is the list of recent changes. 
+* 09:02:26 A new fan probe utility added after finding out NVML isn't return the number of fans on a card.
+* 09:02:26 Fan speed set and gpu power draw (current) is done using the NVML wrapper. 
+* 08:30:26 Now setup to run as root. Required for NVML contol functionality.
+* 08:30:26 New location of config, logging, and command files (etc/gpufanconf/)
+* 08:30:26 Fixed bug that occurred as a result of not truncating the comm file after receiving a quit command. 
 * 08:24:26 config file example now in place. 
 * 08:20:26 Now issues command to driver to allow manual control of fan speeds. 
 * 08:19:26 nvml_wrapper::set_fan_speed_rpm set to unimplemented until further testing. 
@@ -40,26 +45,25 @@ Here is the list of recent changes.
 * More cli arguments. Use --h to see. 
 * There is a new module titled "control". It supports three cooling regimes. High, medium, and low obviously. 
 * Implementation of a hysterisys band as part of the transition downward from high to medium cooling regimes. 
-* A lot of the junk that was in main has been cleaned up. 
-* The idea of charting has been jettisoned for now. 
-* Bits of that charting code is still around (or stashed) for use in...
 
 
 ## Install
 
-Make sure that there is a ~/.config/nvid_fan_control/ directory. In that directory, place the config_example file, but rename it too 
-config. Also place two empty files named "command" and "gpu_fan_perf_log". Make sure these are writable!!!
+This utility (now) runs as root. To facilitate this make sure that there is an /etc/gpufanconf/ directory. In that directory, 
+place the config_example file, but rename it too config. Also place two empty files named "command" and "gpu_fan_perf_log". 
+Make sure these are writable!!!
 
-## Some bad is good
+Additionally, this also means that at this time, ext_com.php will need to be run as root. 
+
+## Some bad is good / Style guide.
 
 While I'm new to Rust, i'm not new to programming. So I'm experienced and I've found what I like. In this case they are ...
 
 * Snake case
 * [Whitesmiths](https://en.wikipedia.org/wiki/Indentation_style#Whitesmiths) formatting style. 
 
-These are non-negotiables in MY code. Don't bother squawking about it. 
+In other words, if you would like to contribute, these are the current guide lines. They are non-negotiables. 
 
-OTOH, if you hire me to write some codez for you, I'll do it in whatever style you desire. 
 
 Drop me a message! :-)
 Cheers
