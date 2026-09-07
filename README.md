@@ -26,7 +26,8 @@ Believing that development is best done in an iterative way, refactoring is gara
 recent changes and ideas that are brewing in my head. 
 
 Here is the list of recent changes. 
-* 09:02:26 A new fan probe utility added after finding out NVML isn't return the number of fans on a card.
+* 09:07:26 Now running all commands and data requests through the NVML wrapper. 
+* 09:02:26 A new fan probe utility added after finding out NVML doesn't return the number of fans on a card.
 * 09:02:26 Fan speed set and gpu power draw (current) is done using the NVML wrapper. 
 * 08:30:26 Now setup to run as root. Required for NVML contol functionality.
 * 08:30:26 New location of config, logging, and command files (etc/gpufanconf/)
