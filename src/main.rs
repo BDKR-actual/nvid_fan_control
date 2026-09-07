@@ -146,12 +146,12 @@ Related functions below
 fn create_log_entry(gpa: &nvid_gpu, mut logging_data: &mut nvid_data, core_temp: &mut u8, fan_target: &mut u8, dbg_out: &u8) -> String
 	{
 	/* These calls to get card daa and power write to the logging_data instance */
-	gpa.get_card_data(&mut logging_data);
-	gpa.get_card_power(&mut logging_data);
+	gpa.return_fan_speed_rpm(&mut logging_data);				// Get's fan speed as RPM
+	gpa.return_card_power(&mut logging_data);					// Get's power as watts
 	logging_data.core_temp         = core_temp.to_string();
 	logging_data.core_temp_f       = celsius_to_farenheit(*core_temp as f32).to_string();
 	logging_data.fan_speed         = fan_target.to_string();
-			
+
 	/* And output if requested */
 	if(*dbg_out==1)	{ dbg!(&logging_data); }
 
