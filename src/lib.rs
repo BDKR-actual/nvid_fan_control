@@ -1,4 +1,5 @@
 
+#![rustfmt::skip]
 #![allow(unused)]
 use config::Config;
 

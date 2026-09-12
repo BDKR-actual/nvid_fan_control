@@ -1,4 +1,5 @@
 
+/* #![rustfmt::skip] */
 #![allow(unused)]
 #![allow(deprecated)]
 #![warn(non_camel_case_types)]
