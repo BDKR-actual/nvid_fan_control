@@ -1,0 +1,16 @@
+
+
+unstable_features = true
+disable_all_formatting = true
+skip_files = ["*"] 
+
+# item_brace_style = "AlwaysNextLine"
+# fn_brace_style= "AlwaysNextLine"
+# empty_item_single_line = true
+
+# brace_style = "AlwaysNextLine"
+# control_brace_style = "AlwaysNextLine"
+# struct_lit_single_line = true
+# indent_style = "Block"
+# empty_item_single_line = true
+# fn_single_line = true

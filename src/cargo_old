@@ -1,7 +1,0 @@
-[package]
-name = "nvid_fan_control"
-version = "0.1.0"
-authors = ["bdkr"]
-edition = "2018"
-
-[dependencies] 
