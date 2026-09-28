@@ -26,6 +26,9 @@ Believing that development is best done in an iterative way, refactoring is gara
 recent changes and ideas that are brewing in my head. 
 
 Here is the list of recent changes. 
+* 09:27:26 A lot of methods (functions in modules) were in strange places. Sorted.
+* 09:27:26 Added some final initialization steps to make sure things will run as expected / designed. 
+* 09:27:26 Log file column headers write at startup is now conditional based on command line arg.
 * 09:07:26 Now running all commands and data requests through the NVML wrapper. 
 * 09:02:26 A new fan probe utility added after finding out NVML doesn't return the number of fans on a card.
 * 09:02:26 Fan speed set and gpu power draw (current) is done using the NVML wrapper. 
