@@ -10,7 +10,8 @@ use std::
     };
 use std::process::exit;
 
-use crate::control::load_controller;
+// use crate::control::load_controller;
+use crate::control::load_controller::load_controller;
 
 pub const LOG_HEADERS_LOCAL:  &str    = "timestamp,core_temp,core_temp_f,ambient_temp,ambient_temp_f,fan_speed,fan1_speed_rpm,fan2_speed_rpm,Power_Draw,gpu_power_draw";
 

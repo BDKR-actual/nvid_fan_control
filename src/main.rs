@@ -1,9 +1,7 @@
 
-/* #![rustfmt::skip] */
 #![allow(unused)]
 #![allow(deprecated)]
 #![warn(non_camel_case_types)]
-extern crate nvml_wrapper;							// Let's bring in the Nvidia wrapper
 
 use std::fs::File;
 use std::collections::HashMap;
@@ -13,25 +11,33 @@ use std::sync::OnceLock;
 use std::thread;
 use std::time::{Duration};
 use nvml_wrapper::{*};
+use is_root::is_root;
 mod control;
 
-/* Modules */
+/* Local Modules and Crates*/
+use nvid_fan_control::config::{*};
 use nvid_fan_control::utility::{*};
-use nvid_fan_control::utility::utility;
 use nvid_fan_control::nvid::{*};
-use nvid_fan_control::nvid::nvid_gpu;
+use nvid_fan_control::nvid::nvid_gpu::nvid_gpu;
 use nvid_fan_control::nvid::nvid_control;
 use nvid_fan_control::nvid::nvid_data;		
 use nvid_fan_control::nvid::nvid_settings::celsius_to_farenheit;
+use crate::control::load_controller::load_controller;								// Not sure why these only work as crates
+use crate::control::external_command;												//                 "
 
-use crate::control::external_command;
+const NOT_ROOT:		&str = "From nvid_fan_control: This needs to be run as root!";
+const NO_CNTRL:		&str = "Unable to control the GPU manually. Perhaps you need to run this as root?";
+const SEP_S:		&str = "\n---------------------------------------------------------------------------------------";
+const SEP_E:		&str = "---------------------------------------------------------------------------------------\n";
 
 /* Super simple logic really */
 fn main()-> Result<(), Box<dyn std::error::Error>>
 	{
+	/* Better be root! */
+	if(!is_root())	{ eprintln!("{}", NOT_ROOT); exit(0); }
+
 	/* Setup */
 	static NVML: OnceLock<Nvml> = OnceLock::new();
-
 	let mut core_temp:  u8					= 0;
 	let mut core_temp_i:u32					= 0;
     let mut last_temp:  u8   				= 0;
@@ -45,7 +51,7 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
     NVML.set(nvml).expect("NVML already initialized");
 	let mut init_util:   u32				= 0;
 	let mut utilization: u8					= 0;									// This is essentially load
-	let mut load_control					= control::load_controller::new();		// The mechanism that will start deciding cooling regimes
+	let mut load_control					= load_controller::new();				// The mechanism that will start deciding cooling regimes
 	let mut ext_commands					= external_command::external_commands::new();
 	let mut logging_data 					= nvid_data::new();
 	let mut stp_3_otr: HashMap<String, String>	= HashMap::new();             		// Creating this conditionally would be nice
@@ -56,23 +62,26 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 		num_fans: 0
 		}; 
 
-	/* ***************************************************************************************************************************************** */
-	/* Initialization */
-	utility::read_config(&mut conf_data);																		// Load the config file
-	let mut fd  	= File::options().append(true).open(<String as Clone>::clone(&conf_data["LOG_LOCATION"]));	// Open the log file for logging
-	use_old_fan_rpm = <String as Clone>::clone(&conf_data["USE_CLI_FAN_RPM"]).parse().unwrap();					// Determine if we are using the wrapper or not
-	load_control.set_starting_state( <String as Clone>::clone(&conf_data["DEF_REGIME"]) );						// Set the default cooling regime
+	/* ***************************************************************************************************************************************** */ /*
+																Initialization 
+	*/ /* ***************************************************************************************************************************************** */
+	/* Dub-c that config dir/files are there and writable */
+	init_actions::config_dir_exists();
+	init_actions::check_files_exist_and_writable();
+
+	/* Act on data form the config file */
+	config_actions::read_config(&mut conf_data);																// Load config data
+	config_actions::read_args(&mut dbg_out, &mut logging);														// Super quick super simple way to catch args 
+	if(logging==1)																								// Open the log file for logging, if requested
+		{ let mut fd = File::options().append(true).open(<String as Clone>::clone(&conf_data["LOG_LOCATION"])); }	
+	use_old_fan_rpm = <String as Clone>::clone(&conf_data["USE_CLI_FAN_RPM"]).parse().unwrap();					// Determine how we are setting fan speed
+	load_control.set_starting_state( <String as Clone>::clone(&conf_data["DEF_REGIME"]) );						// Set the default cooling regime level
+
+	/* Final GPU init steps */
 	gpu_actual.probe_fans();																					// Probe for the number of fans on the card
-
-	/* Let's make sure the drivers will let us control fan speed manually */
-	if( !nvid_gpu::init_manual_control() )
-		{
-		panic!("Unable to control the GPU manually. Perhaps you need to run this as root?"); 
-		exit(0);
-		}
-
-	/* Super quick super simple way to catch args */
-	utility::read_args(&mut dbg_out, &mut logging);
+	if( !nvid_gpu::init_manual_control() )																		// Assume control
+		{ eprintln!("{}", NO_CNTRL); exit(0); }
+	gpu_actual.set_card_power( <String as Clone>::clone(&conf_data["POWER_LIMIT"]) );							// Target power limit from the config file
 
 	/* Now that we know our debug posture (from the line above), send it to the load_controller. */
 	if(dbg_out ==1 )
@@ -84,15 +93,14 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 
 	/* Let's write the headers to the log file. */
 	if(logging==1)
-		{ writeln!(&mut fd.as_ref().expect("There was an explosion when trying to open/write to the log file!\n"), "{}", LOG_HEADERS); }
+		{ writeln!(&mut fd.as_ref().expect("An explosion occurred when trying to open/write to the log file!\n"), "{}", LOG_HEADERS); }
 
 	{ conf_data; }
 
 
-	/* ***************************************************************************************************************************************** */
-	/* Initialization done! Send it! */	
-	/* ***************************************************************************************************************************************** */
-
+	/* ***************************************************************************************************************************************** */ /*
+															Initialization done! Send it!
+	*/ /* ***************************************************************************************************************************************** */
 	/* Now get to work */
 	loop
 		{
@@ -106,10 +114,10 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 
 		if(dbg_out==1)
 			{ 
-			println!("\n---------------------------------------------------------------------------------------");
+			println!("{}", SEP_S);
 			println!("{}c", core_temp);
 			println!("{}%", utilization);
-			println!("---------------------------------------------------------------------------------------\n");
+			println!("{}", SEP_E);
 			}
 
 		if( load_control.clamped == 1 || (core_temp != last_temp) )
@@ -127,7 +135,7 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
         if(logging==1)
             {
 			let lds = create_log_entry(&gpu_actual, &mut logging_data, &mut core_temp, &mut fan_target, &dbg_out); 
-			writeln!(&mut fd.as_ref().expect("There was an explosion when trying to open/write to the log file!\n"), "{}", &lds );
+			writeln!(&mut fd.as_ref().expect("An explosion occurred when trying to open/write to the log file!\n"), "{}", &lds );
             }
 
 		/* Sleep for a bit then check again */
@@ -137,12 +145,9 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
 
 
 
-/* ------------------------------------------------------------------------------------------------------------------------------------------------------ */ 
 /* --------------------------------------------------------------------------------------------------------------------------------------------------- */ /*
-Related functions below
+														Related functions below
 */ /* --------------------------------------------------------------------------------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------------------------------------------------------------------------------------ */
-
 
 fn create_log_entry(gpa: &nvid_gpu, mut logging_data: &mut nvid_data, core_temp: &mut u8, fan_target: &mut u8, dbg_out: &u8) -> String
 	{
@@ -161,8 +166,7 @@ fn create_log_entry(gpa: &nvid_gpu, mut logging_data: &mut nvid_data, core_temp:
 	}
 
 
-
-fn send_speed_request(dbg_out: &u8, uofr: &u8, core_tmp: &u8, last_tmp: &u8, lfn: &mut u8, gpa: &mut nvid_gpu, lc: &mut control::load_controller) -> u8
+fn send_speed_request(dbg_out: &u8, uofr: &u8, core_tmp: &u8, last_tmp: &u8, lfn: &mut u8, gpa: &mut nvid_gpu, lc: &mut load_controller) -> u8
 	{
 	let mut fan_target: u8 	= 0;
 	let	utilization: u8		= gpa.return_utilization();

@@ -35,7 +35,8 @@ impl timer
 	}
 
 
-/* This is really a sub-function of read_config. Does as named and returns the file as lines in a vector */
+/*
+//  This is really a sub-function of read_config. Does as named and returns the file as lines in a vector 
 fn lines_from_file(filename: impl AsRef<Path>) -> Vec<String>
     {
     let file = File::open(filename).expect("no such file");
@@ -48,7 +49,7 @@ fn lines_from_file(filename: impl AsRef<Path>) -> Vec<String>
 
 pub fn read_config(conf_store: &mut HashMap<String, String>)
     {
-    /* Let's generate a string rep of our configuration file */
+    // Let's generate a string rep of our configuration file 
     // let conf_tail                           = "/nvid_fan_controller/config";
     // let dirs_act1                           = dirs::config_dir().expect("Error: Failed to open the home directory!!\n");    // Assumes ~/.config
     // let dirs_act2: String                   = dirs_act1.to_str().unwrap().to_string();                                      // Converts findings above to String
@@ -56,12 +57,12 @@ pub fn read_config(conf_store: &mut HashMap<String, String>)
 
 	let conf_path: String	        			= "/etc/gpufanconf/config".to_string();
 
-    /* Let's now open the file, iterate, and assign pertinent values */
+    // Let's now open the file, iterate, and assign pertinent values 
     let lines_ref   = lines_from_file(conf_path);   // Get each line from the config file as an entry in a vector
     let lines       = lines_ref.clone();
     for l in &lines
         {
-        if(l.contains("//") || l.chars().count()==0) { /* Do nothing */ }   /* Yes, I could do this another way, but this feels explicit. */
+        if(l.contains("//") || l.chars().count()==0) {  }   // Yes, I could do this another way, but this feels explicit. 
         else
             {
             if(l.contains(":"))
@@ -107,4 +108,4 @@ pub fn show_help()
         );
     exit(0);
     }
-
+*/
